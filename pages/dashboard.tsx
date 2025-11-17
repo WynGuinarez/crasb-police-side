@@ -1,0 +1,492 @@
+import {
+    AlertTriangle,
+    BarChart3,
+    Bell,
+    CheckCircle,
+    Clock,
+    Eye,
+    Home,
+    LogOut,
+    Map,
+    MapPin,
+    Navigation,
+    User
+} from 'lucide-react'
+import { useRouter } from 'next/router'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
+import DirectionsModal from '../components/DirectionsModal'
+import ReportDetailsModal from '../components/ReportDetailsModal'
+import { useAuth } from '../contexts/AuthContext'
+
+interface Report {
+  id: string
+  reporterName: string
+  reporterPhone: string
+  reporterEmail: string
+  city: string
+  barangay: string
+  category: string
+  status: 'pending' | 'acknowledged' | 'en-route' | 'resolved' | 'canceled'
+  description: string
+  location: {
+    lat: number
+    lng: number
+    address: string
+  }
+  attachments: string[]
+  emergencyContact: {
+    name: string
+    phone: string
+  }
+  timestamp: string
+}
+
+const Dashboard = () => {
+  const router = useRouter()
+  const { user, logout, isAuthenticated } = useAuth()
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [reports, setReports] = useState<Report[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [showDirectionsModal, setShowDirectionsModal] = useState(false)
+  const [newReportAlert, setNewReportAlert] = useState(false)
+
+  // Mock data - replace with real API calls
+  useEffect(() => {
+    const mockReports: Report[] = [
+      {
+        id: '1',
+        reporterName: 'Rodel Lingcopines',
+        reporterPhone: '+63 912 345 6789',
+        reporterEmail: 'Lingcopines@email.com',
+        city: 'Manila',
+        barangay: 'Malate',
+        category: 'Crime',
+        status: 'pending',
+        description: 'Suspicious activity near the park. Two individuals acting suspiciously around parked vehicles.',
+        location: {
+          lat: 14.5995,
+          lng: 120.9842,
+          address: 'Rizal Park, Malate, Manila'
+        },
+        attachments: ['image1.jpg', 'video1.mp4'],
+        emergencyContact: {
+          name: 'Rodel Lingcopines',
+          phone: '+63 912 345 6790'
+        },
+        timestamp: '2024-01-15T10:30:00Z'
+      },
+      {
+        id: '2',
+        reporterName: 'Wyn Guinarez',
+        reporterPhone: '+63 917 123 4567',
+        reporterEmail: 'wynguinarez@email.com',
+        city: 'Quezon City',
+        barangay: 'Diliman',
+        category: 'Fire',
+        status: 'acknowledged',
+        description: 'Fire alarm triggered in residential building. Smoke visible from 3rd floor.',
+        location: {
+          lat: 14.6539,
+          lng: 121.0689,
+          address: '123 University Ave, Diliman, Quezon City'
+        },
+        attachments: ['fire_image.jpg'],
+        emergencyContact: {
+          name: 'Wyn Guinarez',
+          phone: '+63 917 123 4568'
+        },
+        timestamp: '2024-01-15T09:15:00Z'
+      },
+      {
+        id: '3',
+        reporterName: 'Abram Luke Mora',
+        reporterPhone: '+63 918 765 4321',
+        reporterEmail: 'ambram.mora@email.com',
+        city: 'Makati',
+        barangay: 'Ayala',
+        category: 'Medical',
+        status: 'en-route',
+        description: 'Medical emergency at office building. Person collapsed and needs immediate medical attention.',
+        location: {
+          lat: 14.5547,
+          lng: 121.0244,
+          address: 'Ayala Avenue, Makati City'
+        },
+        attachments: [],
+        emergencyContact: {
+          name: 'Abram Luke Mora',
+          phone: '+63 918 765 4322'
+        },
+        timestamp: '2024-01-15T08:45:00Z'
+      }
+    ]
+
+    // Simulate loading
+    setTimeout(() => {
+      setReports(mockReports)
+      setLoading(false)
+    }, 1000)
+
+    // Simulate new report alert
+    const alertInterval = setInterval(() => {
+      if (Math.random() < 0.1) { // 10% chance every 5 seconds
+        setNewReportAlert(true)
+        toast.success('🚨 New CRASH Report Received!', {
+          duration: 5000,
+          icon: '🚨'
+        })
+      }
+    }, 5000)
+
+    return () => clearInterval(alertInterval)
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login')
+    }
+  }, [isAuthenticated, router])
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Logged out successfully')
+    router.push('/login')
+  }
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    if (tab === 'map') {
+      router.push('/map')
+    } else if (tab === 'analytics') {
+      router.push('/analytics')
+    }
+  }
+
+  const handleViewReport = (report: Report) => {
+    setSelectedReport(report)
+    setShowReportModal(true)
+  }
+
+  const handleViewDirections = (report: Report) => {
+    setSelectedReport(report)
+    setShowDirectionsModal(true)
+  }
+
+  const handleStatusChange = (reportId: string, newStatus: Report['status']) => {
+    setReports(prev => prev.map(report => 
+      report.id === reportId ? { ...report, status: newStatus } : report
+    ))
+    toast.success('Status updated successfully')
+  }
+
+  const getStatusBadge = (status: Report['status']) => {
+    const statusConfig = {
+      pending: { label: 'Pending', className: 'status-pending' },
+      acknowledged: { label: 'Acknowledged', className: 'status-acknowledged' },
+      'en-route': { label: 'En Route', className: 'status-en-route' },
+      resolved: { label: 'Resolved', className: 'status-resolved' },
+      canceled: { label: 'Canceled', className: 'status-canceled' }
+    }
+    
+    const config = statusConfig[status]
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.className}`}>
+        {config.label}
+      </span>
+    )
+  }
+
+  const getCategoryIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'crime':
+        return <AlertTriangle className="h-4 w-4 text-danger-500" />
+      case 'fire':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />
+      case 'medical':
+        return <AlertTriangle className="h-4 w-4 text-success-500" />
+      default:
+        return <AlertTriangle className="h-4 w-4 text-gray-500" />
+    }
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="bg-gradient-primary/95 backdrop-blur-md shadow-lg border-b border-white/30 sticky top-0 z-40">
+        <div className="w-full max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-center h-12">
+            <div className="flex items-center">
+              <div className="h-7 w-7 bg-white rounded-full flex items-center justify-center mr-3 shadow-xl ring-2 ring-white/50">
+                <span className="text-primary-600 text-sm font-bold">C</span>
+              </div>
+              <h1 className="text-lg font-bold text-white drop-shadow-md">CRASH Dashboard</h1>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <button className="p-1 text-white/80 hover:text-white relative">
+                  <Bell className="h-5 w-5" />
+                  {newReportAlert && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                  )}
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="text-right">
+                  <p className="text-xs font-medium text-white">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-white/80">{user?.role}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-1 text-white/80 hover:text-white"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="w-full max-w-7xl mx-auto px-6 py-4">
+        {/* Navigation Tabs */}
+        <div className="mb-4">
+          <nav className="flex space-x-6">
+            <button
+              onClick={() => handleTabChange('dashboard')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive'
+              }`}
+            >
+              <Home className="h-4 w-4 inline mr-2" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => handleTabChange('map')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'map' ? 'tab-active' : 'tab-inactive'
+              }`}
+            >
+              <Map className="h-4 w-4 inline mr-2" />
+              Live Map
+            </button>
+            <button
+              onClick={() => handleTabChange('analytics')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'analytics' ? 'tab-active' : 'tab-inactive'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 inline mr-2" />
+              Analytics
+            </button>
+          </nav>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="space-y-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="glass-card hover:bg-white/85 transition-all duration-200">
+              <div className="flex items-center">
+                <div className="p-3 bg-status-pending-100 rounded-lg">
+                  <Clock className="h-7 w-7 text-status-pending-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-xs font-semibold text-status-pending-700">Pending</p>
+                  <p className="text-2xl font-bold text-status-pending-700">
+                    {reports.filter(r => r.status === 'pending').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="glass-card hover:bg-white/85 transition-all duration-200">
+              <div className="flex items-center">
+                <div className="p-3 bg-status-acknowledged-100 rounded-lg">
+                  <Eye className="h-7 w-7 text-status-acknowledged-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-xs font-semibold text-status-acknowledged-700">Acknowledged</p>
+                  <p className="text-2xl font-bold text-status-acknowledged-700">
+                    {reports.filter(r => r.status === 'acknowledged').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="glass-card hover:bg-white/85 transition-all duration-200">
+              <div className="flex items-center">
+                <div className="p-3 bg-status-enroute-100 rounded-lg">
+                  <Navigation className="h-7 w-7 text-status-enroute-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-xs font-semibold text-status-enroute-700">En Route</p>
+                  <p className="text-2xl font-bold text-status-enroute-700">
+                    {reports.filter(r => r.status === 'en-route').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="glass-card hover:bg-white/85 transition-all duration-200">
+              <div className="flex items-center">
+                <div className="p-3 bg-status-resolved-100 rounded-lg">
+                  <CheckCircle className="h-7 w-7 text-status-resolved-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-xs font-semibold text-status-resolved-700">Resolved</p>
+                  <p className="text-2xl font-bold text-status-resolved-700">
+                    {reports.filter(r => r.status === 'resolved').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Reports Table */}
+          <div className="glass-card-strong">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-900">Active Reports</h2>
+              <div className="text-xs font-medium text-gray-600">
+                {reports.length} total reports
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-white/60 backdrop-blur-sm">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Reporter
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Time
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white/30 divide-y divide-gray-200/50">
+                  {reports.map((report) => (
+                    <tr key={report.id} className="hover:bg-white/50 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-primary-600" />
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {report.reporterName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {report.reporterPhone}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <MapPin className="h-3 w-3 text-gray-400 mr-2" />
+                          <div>
+                            <div className="text-sm text-gray-900">
+                              {report.city}, {report.barangay}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {report.location.address}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {getCategoryIcon(report.category)}
+                          <span className="ml-2 text-sm text-gray-900">
+                            {report.category}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {getStatusBadge(report.status)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {formatTimestamp(report.timestamp)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewReport(report)}
+                            className="text-primary-600 hover:text-primary-800 flex items-center"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleViewDirections(report)}
+                            className="text-green-600 hover:text-green-900 flex items-center"
+                          >
+                            <Navigation className="h-3 w-3 mr-1" />
+                            Directions
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showReportModal && selectedReport && (
+        <ReportDetailsModal
+          report={selectedReport}
+          onClose={() => setShowReportModal(false)}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+
+      {showDirectionsModal && selectedReport && (
+        <DirectionsModal
+          report={selectedReport}
+          onClose={() => setShowDirectionsModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+export default Dashboard
