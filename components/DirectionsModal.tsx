@@ -1,5 +1,5 @@
-import { Copy, ExternalLink, MapPin, Navigation, QrCode, X } from 'lucide-react'
-import { useState } from 'react'
+import { Clock, Copy, ExternalLink, MapPin, Navigation, QrCode, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
 interface Report {
@@ -23,15 +23,34 @@ interface Report {
     phone: string
   }
   timestamp: string
+  distance?: string // Distance from police station to report location (e.g., "5.4 km")
+  eta?: string // Estimated time of arrival (e.g., "12 mins")
 }
 
 interface DirectionsModalProps {
   report: Report
   onClose: () => void
+  onDistanceEtaUpdate?: (reportId: string, distance: string, eta: string) => void
 }
 
-const DirectionsModal = ({ report, onClose }: DirectionsModalProps) => {
+// Haversine formula to calculate distance between two coordinates
+const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }: DirectionsModalProps) => {
   const [showQRCode, setShowQRCode] = useState(false)
+  const [distance, setDistance] = useState<string>(report.distance || '')
+  const [eta, setEta] = useState<string>(report.eta || '')
+  const [loading, setLoading] = useState(false)
 
   // Mock police station location - in a real app, this would come from user settings or API
   const policeStationLocation = {
@@ -39,6 +58,90 @@ const DirectionsModal = ({ report, onClose }: DirectionsModalProps) => {
     lng: 120.9842,
     address: 'Manila Police Station, Rizal Park, Manila'
   }
+
+  // Calculate distance and ETA using Google Maps Directions Service
+  useEffect(() => {
+    const calculateDistanceAndETA = async () => {
+      // If distance and ETA already exist, don't recalculate
+      if (report.distance && report.eta) {
+        setDistance(report.distance)
+        setEta(report.eta)
+        return
+      }
+
+      setLoading(true)
+      try {
+        const origin = `${policeStationLocation.lat},${policeStationLocation.lng}`
+        const destination = `${report.location.lat},${report.location.lng}`
+        
+        // Use Google Maps Directions API
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDH2oAs9HoUj5BueJRfrAfeZiSkhmMWCok'}`
+        )
+        
+        const data = await response.json()
+        
+        if (data.status === 'OK' && data.routes && data.routes.length > 0) {
+          const route = data.routes[0]
+          const leg = route.legs[0]
+          
+          // Extract distance
+          const distanceValue = leg.distance.value / 1000 // Convert meters to kilometers
+          const distanceText = `${distanceValue.toFixed(1)} km`
+          
+          // Extract duration
+          const durationValue = leg.duration.value // in seconds
+          const durationMinutes = Math.round(durationValue / 60)
+          const etaText = `${durationMinutes} mins`
+          
+          setDistance(distanceText)
+          setEta(etaText)
+          
+          // Update parent component with calculated values
+          if (onDistanceEtaUpdate) {
+            onDistanceEtaUpdate(report.id, distanceText, etaText)
+          }
+        } else {
+          // Fallback calculation using Haversine formula for straight-line distance
+          const calculatedDistance = calculateHaversineDistance(
+            policeStationLocation.lat,
+            policeStationLocation.lng,
+            report.location.lat,
+            report.location.lng
+          )
+          const estimatedETA = Math.round(calculatedDistance * 2) // Rough estimate: 2 mins per km
+          
+          setDistance(`${calculatedDistance.toFixed(1)} km`)
+          setEta(`${estimatedETA} mins`)
+          
+          if (onDistanceEtaUpdate) {
+            onDistanceEtaUpdate(report.id, `${calculatedDistance.toFixed(1)} km`, `${estimatedETA} mins`)
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating distance and ETA:', error)
+        // Fallback calculation
+        const calculatedDistance = calculateHaversineDistance(
+          policeStationLocation.lat,
+          policeStationLocation.lng,
+          report.location.lat,
+          report.location.lng
+        )
+        const estimatedETA = Math.round(calculatedDistance * 2)
+        
+        setDistance(`${calculatedDistance.toFixed(1)} km`)
+        setEta(`${estimatedETA} mins`)
+        
+        if (onDistanceEtaUpdate) {
+          onDistanceEtaUpdate(report.id, `${calculatedDistance.toFixed(1)} km`, `${estimatedETA} mins`)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    calculateDistanceAndETA()
+  }, [report.id, report.location.lat, report.location.lng, report.distance, report.eta, onDistanceEtaUpdate])
 
   const generateDirectionsURL = () => {
     const destination = `${report.location.lat},${report.location.lng}`
@@ -112,8 +215,6 @@ const DirectionsModal = ({ report, onClose }: DirectionsModalProps) => {
                     <div className="space-y-2 text-sm text-gray-600">
                       <p><strong>From:</strong> {policeStationLocation.address}</p>
                       <p><strong>To:</strong> {report.location.address}</p>
-                      <p><strong>Distance:</strong> ~2.5 km (estimated)</p>
-                      <p><strong>Duration:</strong> ~8 minutes (estimated)</p>
                     </div>
                   </div>
                 </div>
@@ -164,7 +265,7 @@ const DirectionsModal = ({ report, onClose }: DirectionsModalProps) => {
                         <QrCode className="h-20 w-20 text-gray-400" />
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 mb-4">
                       Scan with your phone for instant directions
                     </p>
                   </div>
@@ -176,6 +277,36 @@ const DirectionsModal = ({ report, onClose }: DirectionsModalProps) => {
                     </p>
                   </div>
                 )}
+
+                {/* Distance and ETA Display Cards */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="glass-card bg-blue-50/50 border-blue-200/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 mb-1">Distance</p>
+                        {loading ? (
+                          <p className="text-lg font-bold text-gray-900">Calculating...</p>
+                        ) : (
+                          <p className="text-lg font-bold text-gray-900">{distance || 'N/A'}</p>
+                        )}
+                      </div>
+                      <MapPin className="h-6 w-6 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="glass-card bg-green-50/50 border-green-200/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 mb-1">Estimated Time</p>
+                        {loading ? (
+                          <p className="text-lg font-bold text-gray-900">Calculating...</p>
+                        ) : (
+                          <p className="text-lg font-bold text-gray-900">{eta || 'N/A'}</p>
+                        )}
+                      </div>
+                      <Clock className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

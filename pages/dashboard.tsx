@@ -9,6 +9,7 @@ import {
     LogOut,
     Map,
     MapPin,
+    MessageSquare,
     Navigation,
     User
 } from 'lucide-react'
@@ -17,6 +18,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import DirectionsModal from '../components/DirectionsModal'
 import ReportDetailsModal from '../components/ReportDetailsModal'
+import ReportChatModal from '../components/ReportChatModal'
 import { useAuth } from '../contexts/AuthContext'
 
 interface Report {
@@ -40,6 +42,8 @@ interface Report {
     phone: string
   }
   timestamp: string
+  distance?: string // Distance from police station to report location (e.g., "5.4 km")
+  eta?: string // Estimated time of arrival (e.g., "12 mins")
 }
 
 const Dashboard = () => {
@@ -51,6 +55,7 @@ const Dashboard = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [showReportModal, setShowReportModal] = useState(false)
   const [showDirectionsModal, setShowDirectionsModal] = useState(false)
+  const [showChatModal, setShowChatModal] = useState(false)
   const [newReportAlert, setNewReportAlert] = useState(false)
 
   // Mock data - replace with real API calls
@@ -175,11 +180,31 @@ const Dashboard = () => {
     setShowDirectionsModal(true)
   }
 
+  const handleOpenChat = (report: Report) => {
+    setSelectedReport(report)
+    setShowChatModal(true)
+  }
+
+  const handleCloseChat = () => {
+    setShowChatModal(false)
+    setSelectedReport(null)
+  }
+
   const handleStatusChange = (reportId: string, newStatus: Report['status']) => {
     setReports(prev => prev.map(report => 
       report.id === reportId ? { ...report, status: newStatus } : report
     ))
     toast.success('Status updated successfully')
+  }
+
+  const handleDistanceEtaUpdate = (reportId: string, distance: string, eta: string) => {
+    setReports(prev => prev.map(report => 
+      report.id === reportId ? { ...report, distance, eta } : report
+    ))
+    // Update selectedReport if it's the same report
+    if (selectedReport && selectedReport.id === reportId) {
+      setSelectedReport(prev => prev ? { ...prev, distance, eta } : null)
+    }
   }
 
   const getStatusBadge = (status: Report['status']) => {
@@ -382,10 +407,10 @@ const Dashboard = () => {
                       Reporter
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Location
+                      Category
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Category
+                      Location
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
@@ -418,6 +443,14 @@ const Dashboard = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center">
+                          {getCategoryIcon(report.category)}
+                          <span className="ml-2 text-sm text-gray-900">
+                            {report.category}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center">
                           <MapPin className="h-3 w-3 text-gray-400 mr-2" />
                           <div>
                             <div className="text-sm text-gray-900">
@@ -427,14 +460,6 @@ const Dashboard = () => {
                               {report.location.address}
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {getCategoryIcon(report.category)}
-                          <span className="ml-2 text-sm text-gray-900">
-                            {report.category}
-                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -459,6 +484,13 @@ const Dashboard = () => {
                             <Navigation className="h-3 w-3 mr-1" />
                             Directions
                           </button>
+                          <button
+                            onClick={() => handleOpenChat(report)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center"
+                          >
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            Open Chat
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -476,6 +508,7 @@ const Dashboard = () => {
           report={selectedReport}
           onClose={() => setShowReportModal(false)}
           onStatusChange={handleStatusChange}
+          onDistanceEtaUpdate={handleDistanceEtaUpdate}
         />
       )}
 
@@ -483,6 +516,15 @@ const Dashboard = () => {
         <DirectionsModal
           report={selectedReport}
           onClose={() => setShowDirectionsModal(false)}
+          onDistanceEtaUpdate={handleDistanceEtaUpdate}
+        />
+      )}
+
+      {showChatModal && selectedReport && user && (
+        <ReportChatModal
+          report={selectedReport}
+          userId={user.id}
+          onClose={handleCloseChat}
         />
       )}
     </div>

@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bell,
   Home,
+  Info,
   LogOut,
   Map,
   MapPin,
@@ -14,9 +15,11 @@ import {
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api'
 import AddCheckpointModal from '../components/AddCheckpointModal'
 import EditCheckpointModal from '../components/EditCheckpointModal'
 import ReportDetailsModal from '../components/ReportDetailsModal'
+import MapLegendModal from '../components/MapLegendModal'
 import { useAuth } from '../contexts/AuthContext'
 
 interface Checkpoint {
@@ -29,7 +32,10 @@ interface Checkpoint {
   }
   assignedOfficers: string[]
   schedule: string
+  timeStart: string
+  timeEnd: string
   status: 'active' | 'inactive'
+  contactNumber: string
 }
 
 interface Report {
@@ -53,7 +59,27 @@ interface Report {
     phone: string
   }
   timestamp: string
+  distance?: string // Distance from police station to report location (e.g., "5.4 km")
+  eta?: string // Estimated time of arrival (e.g., "12 mins")
 }
+
+// Google Maps API Key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDH2oAs9HoUj5BueJRfrAfeZiSkhmMWCok'
+
+// Map container style
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%'
+}
+
+// Metro Manila center coordinates
+const defaultCenter = {
+  lat: 14.5995,
+  lng: 120.9842
+}
+
+// Default zoom level for Metro Manila
+const defaultZoom = 12
 
 const LiveMap = () => {
   const router = useRouter()
@@ -62,11 +88,17 @@ const LiveMap = () => {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Load Google Maps script
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY
+  })
   const [showAddCheckpoint, setShowAddCheckpoint] = useState(false)
   const [showEditCheckpoint, setShowEditCheckpoint] = useState(false)
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null)
   const [showReportModal, setShowReportModal] = useState(false)
   const [selectedReportForModal, setSelectedReportForModal] = useState<Report | null>(null)
+  const [showLegendModal, setShowLegendModal] = useState(false)
   const [activeFilters, setActiveFilters] = useState<{
     activeCases: boolean
     policeCheckpoint: boolean
@@ -76,6 +108,7 @@ const LiveMap = () => {
     policeCheckpoint: true,
     policeOffices: true
   })
+  const [checkpointFilter, setCheckpointFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedPin, setSelectedPin] = useState<{ type: 'report' | 'checkpoint' | 'office', data: Report | Checkpoint | null } | null>(null)
 
   // Mock data - replace with real API calls
@@ -91,7 +124,10 @@ const LiveMap = () => {
         },
         assignedOfficers: ['Officer John', 'Officer Maria'],
         schedule: '24/7',
-        status: 'active'
+        timeStart: '00:00',
+        timeEnd: '23:59',
+        status: 'active',
+        contactNumber: '+63 2 8523 4567'
       },
       {
         id: '2',
@@ -102,8 +138,11 @@ const LiveMap = () => {
           address: 'EDSA Corner Ayala Avenue, Makati'
         },
         assignedOfficers: ['Officer Pedro', 'Officer Ana'],
-        schedule: '6:00 AM - 10:00 PM',
-        status: 'active'
+        schedule: '06:00 - 22:00',
+        timeStart: '06:00',
+        timeEnd: '22:00',
+        status: 'active',
+        contactNumber: '+63 2 8845 1234'
       },
       {
         id: '3',
@@ -114,8 +153,11 @@ const LiveMap = () => {
           address: 'Quezon City Hall, Diliman'
         },
         assignedOfficers: ['Officer Carlos', 'Officer Sofia'],
-        schedule: '12:00 PM - 12:00 AM',
-        status: 'active'
+        schedule: '12:00 - 00:00',
+        timeStart: '12:00',
+        timeEnd: '00:00',
+        status: 'active',
+        contactNumber: '+63 2 8927 8901'
       }
     ]
 
@@ -166,12 +208,10 @@ const LiveMap = () => {
       }
     ]
 
-    // Simulate loading
-    setTimeout(() => {
-      setCheckpoints(mockCheckpoints)
-      setReports(mockReports)
-      setLoading(false)
-    }, 1000)
+    // Load data immediately (no artificial delay)
+    setCheckpoints(mockCheckpoints)
+    setReports(mockReports)
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -179,6 +219,16 @@ const LiveMap = () => {
       router.push('/login')
     }
   }, [isAuthenticated, router])
+
+  // Refresh checkpoint status every minute to update active/inactive status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render by updating state (checkpoints array reference stays same, but component will re-render)
+      setCheckpoints(prev => [...prev])
+    }, 60000) // Update every minute
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -209,6 +259,9 @@ const LiveMap = () => {
     setCheckpoints(prev => prev.map(checkpoint => 
       checkpoint.id === updatedCheckpoint.id ? updatedCheckpoint : checkpoint
     ))
+    // Reset filter to 'all' when updating a checkpoint so it remains visible
+    // This ensures inactive checkpoints don't disappear when updated
+    setCheckpointFilter('all')
     toast.success('Checkpoint updated successfully')
     setShowEditCheckpoint(false)
     setSelectedCheckpoint(null)
@@ -254,10 +307,61 @@ const LiveMap = () => {
     }
   }
 
-  if (loading) {
+  // Function to determine if a checkpoint is currently active based on status and time
+  const isCheckpointCurrentlyActive = (checkpoint: Checkpoint): boolean => {
+    // First check if the checkpoint status is 'inactive' - if so, it's always inactive
+    if (checkpoint.status === 'inactive') {
+      return false
+    }
+
+    // If status is 'active', check if current time is within the operating window
+    const now = new Date()
+    const currentHours = now.getHours()
+    const currentMinutes = now.getMinutes()
+    const currentTime = currentHours * 60 + currentMinutes // Convert to minutes since midnight
+
+    const [startHours, startMinutes] = checkpoint.timeStart.split(':').map(Number)
+    const [endHours, endMinutes] = checkpoint.timeEnd.split(':').map(Number)
+    const startTime = startHours * 60 + startMinutes
+    const endTime = endHours * 60 + endMinutes
+
+    // Handle case where end time is next day (e.g., 12:00 to 00:00)
+    if (endTime < startTime) {
+      // Time window spans midnight
+      return currentTime >= startTime || currentTime <= endTime
+    } else {
+      // Normal time window within same day
+      return currentTime >= startTime && currentTime <= endTime
+    }
+  }
+
+  // Filter checkpoints based on selected filter
+  const getFilteredCheckpoints = (): Checkpoint[] => {
+    if (checkpointFilter === 'all') {
+      return checkpoints
+    } else if (checkpointFilter === 'active') {
+      return checkpoints.filter(checkpoint => isCheckpointCurrentlyActive(checkpoint))
+    } else {
+      // 'inactive'
+      return checkpoints.filter(checkpoint => !isCheckpointCurrentlyActive(checkpoint))
+    }
+  }
+
+  if (loading || !isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Error loading Google Maps</p>
+          <p className="text-gray-600 text-sm">{loadError.message}</p>
+        </div>
       </div>
     )
   }
@@ -335,10 +439,17 @@ const LiveMap = () => {
         </div>
 
         {/* Map Container - Full Width */}
-        <div className="glass-card-strong h-[calc(100vh-200px)]">
-          <div className="flex items-center justify-between mb-4">
+        <div className="glass-card-strong h-[calc(100vh-120px)]">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-semibold text-gray-900">Live Map Monitoring</h2>
             <div className="flex space-x-2">
+              <button
+                onClick={() => setShowLegendModal(true)}
+                className="btn-secondary flex items-center"
+              >
+                <Info className="h-4 w-4 mr-2" />
+                Legend
+              </button>
               <button
                 onClick={() => setShowAddCheckpoint(true)}
                 className="btn-primary flex items-center"
@@ -350,7 +461,7 @@ const LiveMap = () => {
           </div>
           
           {/* Filter Buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-3 items-center">
             <button
               onClick={() => setActiveFilters(prev => ({ ...prev, activeCases: !prev.activeCases }))}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
@@ -371,7 +482,7 @@ const LiveMap = () => {
               }`}
             >
               <div className={`w-3 h-3 rounded-full mr-2 ${activeFilters.policeCheckpoint ? 'bg-primary-600' : 'bg-gray-400'}`}></div>
-              Police Checkpoint
+              Police Checkpoints
             </button>
             <button
               onClick={() => setActiveFilters(prev => ({ ...prev, policeOffices: !prev.policeOffices }))}
@@ -384,149 +495,219 @@ const LiveMap = () => {
               <div className={`w-3 h-3 rounded-full mr-2 ${activeFilters.policeOffices ? 'bg-green-500' : 'bg-gray-400'}`}></div>
               Police Offices/Station
             </button>
+            
+            {/* Conditional Checkpoint Filter Dropdown - Only shows when Police Checkpoints is selected */}
+            {activeFilters.policeCheckpoint && (
+              <div className="ml-2">
+                <select
+                  value={checkpointFilter}
+                  onChange={(e) => setCheckpointFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border-2 border-primary-600 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                >
+                  <option value="all">All Checkpoints</option>
+                  <option value="active">Active Checkpoints</option>
+                  <option value="inactive">Inactive Checkpoints</option>
+                </select>
+              </div>
+            )}
           </div>
           
           {/* Google Maps Container */}
-          <div className="bg-gray-100 rounded-lg h-[calc(100%-140px)] flex items-center justify-center border-2 border-dashed border-gray-300 relative">
-            {/* Map Pins (Mock implementation - will be replaced with actual Google Maps) */}
-            <div className="absolute inset-0 z-10">
-              {/* Mock pins for demonstration */}
-              {activeFilters.activeCases && reports.map((report) => (
-                <button
-                  key={report.id}
+          <div className="bg-gray-100 rounded-lg h-[calc(100%-120px)] relative overflow-hidden">
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={defaultCenter}
+              zoom={defaultZoom}
+              options={{
+                disableDefaultUI: false,
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+                styles: [
+                  {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                  }
+                ]
+              }}
+            >
+                {/* Case Pins (Reports) */}
+                {activeFilters.activeCases && reports.map((report) => {
+                  const getCategoryColor = (category: string) => {
+                    switch (category.toLowerCase()) {
+                      case 'crime':
+                        return '#ef4444' // red-500
+                      case 'fire':
+                        return '#f97316' // orange-500
+                      case 'medical':
+                        return '#22c55e' // green-500
+                      default:
+                        return '#6b7280' // gray-500
+                    }
+                  }
+
+                  return (
+                    <Marker
+                      key={`report-${report.id}`}
+                      position={{
+                        lat: report.location.lat,
+                        lng: report.location.lng
+                      }}
+                      icon={{
+                        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                        fillColor: getCategoryColor(report.category),
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2,
+                        scale: 1.2,
+                        anchor: { x: 12, y: 24 }
+                      }}
                   onClick={() => setSelectedPin({ type: 'report', data: report })}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
-                  style={{
-                    left: `${((report.location.lng + 180) / 360) * 100}%`,
-                    top: `${((90 - report.location.lat) / 180) * 100}%`
-                  }}
                   title={`${report.category} - ${report.city}`}
-                >
-                  <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform">
-                    <AlertTriangle className="h-3 w-3 text-white" />
-                  </div>
-                </button>
-              ))}
-              
-              {activeFilters.policeCheckpoint && checkpoints.map((checkpoint) => (
-                <button
-                  key={checkpoint.id}
-                  onClick={() => setSelectedPin({ type: 'checkpoint', data: checkpoint })}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
-                  style={{
-                    left: `${((checkpoint.location.lng + 180) / 360) * 100}%`,
-                    top: `${((90 - checkpoint.location.lat) / 180) * 100}%`
-                  }}
-                  title={checkpoint.name}
-                >
-                  <div className="w-6 h-6 bg-primary-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform">
-                    <MapPin className="h-3 w-3 text-white" />
-                  </div>
-                </button>
-              ))}
-            </div>
+                    />
+                  )
+                })}
+
+                {/* Checkpoint Pins */}
+              {activeFilters.policeCheckpoint && getFilteredCheckpoints().map((checkpoint) => {
+                  const isActive = isCheckpointCurrentlyActive(checkpoint)
+                  const pinColor = isActive ? '#2563eb' : '#6b7280' // Blue for active, Gray for inactive
+                  
+                  return (
+                    <Marker
+                      key={`checkpoint-${checkpoint.id}`}
+                      position={{
+                        lat: checkpoint.location.lat,
+                        lng: checkpoint.location.lng
+                      }}
+                      icon={{
+                        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                        fillColor: pinColor,
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2,
+                        scale: 1.2,
+                        anchor: { x: 12, y: 24 }
+                      }}
+                      onClick={() => setSelectedPin({ type: 'checkpoint', data: checkpoint })}
+                      title={checkpoint.name}
+                    />
+                  )
+                })}
+            </GoogleMap>
             
-            {/* Map placeholder content */}
-            <div className="text-center z-0">
-              <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
-                Google Maps Integration
-              </h4>
-              <p className="text-sm text-gray-500 mb-4">
-                This container will display Google Maps with live pins for reports and checkpoints.
-              </p>
-              <div className="text-xs text-gray-600">
-                Click on pins to view details
-              </div>
-            </div>
-            
-            {/* Pin Pop-up Window */}
+            {/* Pin Pop-up Window - Compact */}
             {selectedPin && (
-              <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-xl rounded-lg shadow-2xl border border-white/50 p-4 z-30">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {selectedPin.type === 'report' && selectedPin.data && (
-                      <>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                          {(selectedPin.data as Report).category} Report
-                        </h3>
-                        <div className="space-y-2 mb-4">
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Reporter:</span> {(selectedPin.data as Report).reporterName}
-                          </p>
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Location:</span> {(selectedPin.data as Report).city}, {(selectedPin.data as Report).barangay}
-                          </p>
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Status:</span>{' '}
-                            <span className={`font-medium underline ${getStatusColor((selectedPin.data as Report).status)}`}>
-                              {(selectedPin.data as Report).status.charAt(0).toUpperCase() + (selectedPin.data as Report).status.slice(1)}
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-500 mt-3 pt-2 border-t border-gray-200">
-                            {(selectedPin.data as Report).location.address}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedReportForModal(selectedPin.data as Report)
-                            setShowReportModal(true)
-                            setSelectedPin(null)
-                          }}
-                          className="btn-primary text-sm py-2 px-4 w-full"
-                        >
-                          View Full Details
-                        </button>
-                      </>
-                    )}
-                    {selectedPin.type === 'checkpoint' && selectedPin.data && (
-                      <>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {(selectedPin.data as Checkpoint).name}
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-1">
-                          Officers: {(selectedPin.data as Checkpoint).assignedOfficers.join(', ')}
-                        </p>
-                        <p className="text-sm text-gray-600 mb-1">
-                          Schedule: {(selectedPin.data as Checkpoint).schedule}
-                        </p>
-                        <p className="text-xs text-gray-500 mb-3">
-                          {(selectedPin.data as Checkpoint).location.address}
-                        </p>
-                        <div className="flex space-x-2 mt-3">
-                          <button
-                            onClick={() => {
-                              handleEditCheckpointClick(selectedPin.data as Checkpoint)
-                              setSelectedPin(null)
-                            }}
-                            className="btn-secondary text-sm py-2 px-4 flex items-center"
-                          >
-                            <Pencil className="h-4 w-4 mr-1" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to delete "${(selectedPin.data as Checkpoint).name}"?`)) {
-                                handleDeleteCheckpoint((selectedPin.data as Checkpoint).id)
-                                setSelectedPin(null)
-                              }
-                            }}
-                            className="btn-danger text-sm py-2 px-4 flex items-center"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Remove
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+              <div className="absolute bottom-4 right-4 max-w-xs bg-white/95 backdrop-blur-xl rounded-lg shadow-2xl border border-white/50 p-3 z-30">
+                <div className="flex items-start justify-between mb-2">
+                  {selectedPin.type === 'report' && selectedPin.data && (
+                    <h3 className="text-sm font-semibold text-gray-900 flex-1 pr-2 truncate">
+                      {(selectedPin.data as Report).category} Report
+                    </h3>
+                  )}
+                  {selectedPin.type === 'checkpoint' && selectedPin.data && (
+                    <h3 className="text-sm font-semibold text-gray-900 flex-1 pr-2 truncate">
+                      {(selectedPin.data as Checkpoint).name}
+                    </h3>
+                  )}
                   <button
                     onClick={() => setSelectedPin(null)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors ml-4"
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
                   >
-                    <X className="h-5 w-5 text-gray-500" />
+                    <X className="h-4 w-4 text-gray-500" />
                   </button>
                 </div>
+                
+                {selectedPin.type === 'report' && selectedPin.data && (
+                  <>
+                    <div className="space-y-1.5 mb-3">
+                      <p className="text-xs text-gray-700 truncate">
+                        <span className="font-medium">Reporter:</span> {(selectedPin.data as Report).reporterName}
+                      </p>
+                      <p className="text-xs text-gray-700 truncate">
+                        <span className="font-medium">Location:</span> {(selectedPin.data as Report).city}, {(selectedPin.data as Report).barangay}
+                      </p>
+                      <p className="text-xs text-gray-700">
+                        <span className="font-medium">Status:</span>{' '}
+                        <span className={`font-medium underline ${getStatusColor((selectedPin.data as Report).status)}`}>
+                          {(selectedPin.data as Report).status.charAt(0).toUpperCase() + (selectedPin.data as Report).status.slice(1)}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500 pt-1.5 border-t border-gray-200 line-clamp-2">
+                        {(selectedPin.data as Report).location.address}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedReportForModal(selectedPin.data as Report)
+                        setShowReportModal(true)
+                        setSelectedPin(null)
+                      }}
+                      className="btn-primary text-xs py-1.5 px-3 w-full"
+                    >
+                      View Full Details
+                    </button>
+                  </>
+                )}
+                
+                {selectedPin.type === 'checkpoint' && selectedPin.data && (() => {
+                  const checkpoint = selectedPin.data as Checkpoint
+                  // Format operating hours: show "24/7" if timeStart is 00:00 and timeEnd is 23:59 (or 00:00)
+                  const formatOperatingHours = () => {
+                    // Check for 24/7 cases: 00:00 to 23:59 or 00:00 to 00:00 (full day)
+                    if ((checkpoint.timeStart === '00:00' && checkpoint.timeEnd === '23:59') ||
+                        (checkpoint.timeStart === '00:00' && checkpoint.timeEnd === '00:00')) {
+                      return '24/7'
+                    }
+                    // Otherwise show the time range in 24-hour format
+                    return `${checkpoint.timeStart} - ${checkpoint.timeEnd}`
+                  }
+                  
+                  return (
+                    <>
+                      <div className="space-y-1.5 mb-3">
+                        <p className="text-xs text-gray-600 truncate">
+                          <span className="font-medium">Officers:</span> {checkpoint.assignedOfficers.join(', ')}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Time:</span> {formatOperatingHours()}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Contact:</span> {checkpoint.contactNumber}
+                        </p>
+                        <p className="text-xs text-gray-500 pt-1.5 border-t border-gray-200 line-clamp-2">
+                          {checkpoint.location.address}
+                        </p>
+                      </div>
+                    <div className="flex flex-col space-y-1.5">
+                      <button
+                        onClick={() => {
+                          handleEditCheckpointClick(selectedPin.data as Checkpoint)
+                          setSelectedPin(null)
+                        }}
+                        className="btn-secondary text-xs py-1.5 px-3 flex items-center justify-center w-full"
+                      >
+                        <Pencil className="h-3 w-3 mr-1.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete "${(selectedPin.data as Checkpoint).name}"?`)) {
+                            handleDeleteCheckpoint((selectedPin.data as Checkpoint).id)
+                            setSelectedPin(null)
+                          }
+                        }}
+                        className="btn-danger text-xs py-1.5 px-3 flex items-center justify-center w-full"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1.5" />
+                        Remove
+                      </button>
+                    </div>
+                    </>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -566,6 +747,12 @@ const LiveMap = () => {
             ))
             toast.success('Status updated successfully')
           }}
+        />
+      )}
+
+      {showLegendModal && (
+        <MapLegendModal
+          onClose={() => setShowLegendModal(false)}
         />
       )}
     </div>

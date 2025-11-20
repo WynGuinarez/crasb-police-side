@@ -7,12 +7,13 @@ import {
     Mail,
     MapPin,
     MessageSquare,
+    Navigation,
     Phone,
     User,
     Video,
     X
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
 interface Report {
@@ -36,18 +37,26 @@ interface Report {
     phone: string
   }
   timestamp: string
+  distance?: string // Distance from police station to report location (e.g., "5.4 km")
+  eta?: string // Estimated time of arrival (e.g., "12 mins")
 }
 
 interface ReportDetailsModalProps {
   report: Report
   onClose: () => void
   onStatusChange: (reportId: string, newStatus: Report['status']) => void
+  onDistanceEtaUpdate?: (reportId: string, distance: string, eta: string) => void
 }
 
-const ReportDetailsModal = ({ report, onClose, onStatusChange }: ReportDetailsModalProps) => {
+const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpdate }: ReportDetailsModalProps) => {
   const [selectedStatus, setSelectedStatus] = useState<Report['status']>(report.status)
   const [message, setMessage] = useState('')
   const [showAttachments, setShowAttachments] = useState(false)
+
+  // Update selectedStatus when report status changes
+  useEffect(() => {
+    setSelectedStatus(report.status)
+  }, [report.status])
 
   const handleStatusChange = () => {
     if (selectedStatus !== report.status) {
@@ -226,6 +235,41 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange }: ReportDetailsMo
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Response Information */}
+              <div className="glass-card bg-blue-50/50 border-blue-200/50">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                  <Navigation className="h-4 w-4 mr-2 text-blue-600" />
+                  Response Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Distance (Police → Report)
+                    </label>
+                    <p className="text-sm font-medium text-gray-900">
+                      {report.distance || (
+                        <span className="text-gray-400 italic">Not calculated</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      ETA (Estimated Time)
+                    </label>
+                    <p className="text-sm font-medium text-gray-900">
+                      {report.eta || (
+                        <span className="text-gray-400 italic">Not calculated</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {(!report.distance || !report.eta) && (
+                  <p className="text-xs text-gray-500 mt-3">
+                    Click "Directions" button to calculate distance and ETA
+                  </p>
+                )}
               </div>
 
               <div>

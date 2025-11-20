@@ -1,4 +1,4 @@
-import { Clock, MapPin, Trash2, Users, X } from 'lucide-react'
+import { Clock, MapPin, Phone, Trash2, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
@@ -12,7 +12,10 @@ interface Checkpoint {
   }
   assignedOfficers: string[]
   schedule: string
+  timeStart: string
+  timeEnd: string
   status: 'active' | 'inactive'
+  contactNumber: string
 }
 
 interface EditCheckpointModalProps {
@@ -30,7 +33,10 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
     lng: checkpoint.location.lng.toString(),
     assignedOfficers: checkpoint.assignedOfficers.join(', '),
     schedule: checkpoint.schedule,
-    status: checkpoint.status
+    timeStart: checkpoint.timeStart || '08:00',
+    timeEnd: checkpoint.timeEnd || '20:00',
+    status: checkpoint.status,
+    contactNumber: checkpoint.contactNumber || ''
   })
   const [loading, setLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -38,8 +44,22 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.name.trim() || !formData.address.trim()) {
+    if (!formData.name.trim() || !formData.address.trim() || !formData.contactNumber.trim() || !formData.timeStart || !formData.timeEnd) {
       toast.error('Please fill in all required fields')
+      return
+    }
+
+    // Basic phone number validation
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/
+    if (!phoneRegex.test(formData.contactNumber.trim())) {
+      toast.error('Please enter a valid phone number')
+      return
+    }
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01][0-9]|2[0-3]):[0-5][0-9]$/
+    if (!timeRegex.test(formData.timeStart) || !timeRegex.test(formData.timeEnd)) {
+      toast.error('Please enter valid time in 24-hour format (HH:MM)')
       return
     }
 
@@ -59,8 +79,11 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
           .split(',')
           .map(officer => officer.trim())
           .filter(officer => officer.length > 0),
-        schedule: formData.schedule.trim() || '24/7',
-        status: formData.status as 'active' | 'inactive'
+        schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
+        timeStart: formData.timeStart,
+        timeEnd: formData.timeEnd,
+        status: formData.status as 'active' | 'inactive',
+        contactNumber: formData.contactNumber.trim()
       }
       
       onUpdate(updatedCheckpoint)
@@ -75,6 +98,35 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Handle time input with strict 24-hour format enforcement
+  const handleTimeChange = (field: 'timeStart' | 'timeEnd', value: string) => {
+    // Remove any non-digit characters except colon
+    let cleaned = value.replace(/[^\d:]/g, '')
+    
+    // Limit to 5 characters (HH:MM)
+    if (cleaned.length > 5) {
+      cleaned = cleaned.substring(0, 5)
+    }
+    
+    // Auto-format as user types
+    if (cleaned.length === 2 && !cleaned.includes(':')) {
+      cleaned = cleaned + ':'
+    }
+    
+    // Validate hours (00-23) and minutes (00-59)
+    if (cleaned.includes(':')) {
+      const [hours, minutes] = cleaned.split(':')
+      if (hours && parseInt(hours) > 23) {
+        cleaned = '23' + (minutes ? ':' + minutes : '')
+      }
+      if (minutes && parseInt(minutes) > 59) {
+        cleaned = (hours || '00') + ':59'
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: cleaned }))
   }
 
   return (
@@ -112,6 +164,24 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
               className="input-field"
               required
             />
+          </div>
+
+          {/* Contact Number */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Checkpoint Contact Number *
+            </label>
+            <div className="relative">
+              <Phone className="h-5 w-5 text-gray-400 absolute left-3 top-3" />
+              <input
+                type="tel"
+                value={formData.contactNumber}
+                onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                placeholder="e.g., +63 912 345 6789"
+                className="input-field pl-10"
+                required
+              />
+            </div>
           </div>
 
           {/* Location */}
@@ -179,19 +249,70 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
             </p>
           </div>
 
-          {/* Schedule */}
+          {/* Time Start */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Schedule
+              Time Start (24-hour format) *
             </label>
             <div className="relative">
               <Clock className="h-5 w-5 text-gray-400 absolute left-3 top-3" />
               <input
                 type="text"
-                value={formData.schedule}
-                onChange={(e) => handleInputChange('schedule', e.target.value)}
-                placeholder="e.g., 6:00 AM - 10:00 PM or 24/7"
+                value={formData.timeStart}
+                onChange={(e) => handleTimeChange('timeStart', e.target.value)}
+                onBlur={(e) => {
+                  // Ensure format is HH:MM on blur
+                  const value = e.target.value
+                  if (value && !value.match(/^([01][0-9]|2[0-3]):[0-5][0-9]$/)) {
+                    // Try to fix common issues
+                    let fixed = value.replace(/[^\d:]/g, '')
+                    if (fixed.length === 4 && !fixed.includes(':')) {
+                      fixed = fixed.substring(0, 2) + ':' + fixed.substring(2)
+                    }
+                    if (fixed.match(/^([01][0-9]|2[0-3]):[0-5][0-9]$/)) {
+                      setFormData(prev => ({ ...prev, timeStart: fixed }))
+                    }
+                  }
+                }}
+                placeholder="HH:MM (e.g., 08:00, 23:30)"
                 className="input-field pl-10"
+                required
+                pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                maxLength={5}
+              />
+            </div>
+          </div>
+
+          {/* Time End */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Time End (24-hour format) *
+            </label>
+            <div className="relative">
+              <Clock className="h-5 w-5 text-gray-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={formData.timeEnd}
+                onChange={(e) => handleTimeChange('timeEnd', e.target.value)}
+                onBlur={(e) => {
+                  // Ensure format is HH:MM on blur
+                  const value = e.target.value
+                  if (value && !value.match(/^([01][0-9]|2[0-3]):[0-5][0-9]$/)) {
+                    // Try to fix common issues
+                    let fixed = value.replace(/[^\d:]/g, '')
+                    if (fixed.length === 4 && !fixed.includes(':')) {
+                      fixed = fixed.substring(0, 2) + ':' + fixed.substring(2)
+                    }
+                    if (fixed.match(/^([01][0-9]|2[0-3]):[0-5][0-9]$/)) {
+                      setFormData(prev => ({ ...prev, timeEnd: fixed }))
+                    }
+                  }
+                }}
+                placeholder="HH:MM (e.g., 08:00, 23:30)"
+                className="input-field pl-10"
+                required
+                pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                maxLength={5}
               />
             </div>
           </div>
