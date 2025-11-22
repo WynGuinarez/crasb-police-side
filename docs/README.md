@@ -49,7 +49,6 @@ A comprehensive web dashboard for police authorities to manage emergency reports
 ### Prerequisites
 - **Node.js 18+** (Download from [nodejs.org](https://nodejs.org/))
 - **npm** (comes with Node.js) or **yarn**
-- **Firebase Account** (for chat functionality - see Firebase Setup below)
 
 ### Quick Setup (5 Minutes)
 
@@ -64,67 +63,19 @@ cd crasb-police-side
 npm install
 ```
 
-3. **Set up environment variables**
-```bash
-# Copy the example environment file
-# On Windows (PowerShell):
-Copy-Item .env.example .env.local
-
-# On Mac/Linux:
-cp .env.example .env.local
-```
-
-4. **Configure Firebase** (Required for chat functionality)
-   - Open `.env.local` file
-   - Fill in your Firebase credentials (see [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for detailed instructions)
-   - Or use the quick setup below
-
-5. **Run the development server**
+3. **Run the development server**
 ```bash
 npm run dev
 ```
 
-6. **Open your browser**
+4. **Open your browser**
    - Navigate to [http://localhost:3000](http://localhost:3000)
 
 ### Demo Credentials
 - **Username**: `admin`
 - **Password**: `admin123`
 
-### Firebase Setup (Required for Chat)
-
-The chat functionality requires Firebase configuration. Follow these steps:
-
-1. **Get Firebase Credentials:**
-   - Go to [Firebase Console](https://console.firebase.google.com/)
-   - Create a new project or select existing one
-   - Go to Project Settings → Your apps → Add web app
-   - Copy the `firebaseConfig` values
-
-2. **Update `.env.local`:**
-   ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-   NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
-   NEXT_PUBLIC_APP_ID=crash-police-app
-   ```
-
-3. **Set Firestore Security Rules:**
-   - Go to Firestore Database → Rules
-   - Use the rules from [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
-
-4. **Restart the dev server** after updating `.env.local`
-
-> 📖 **Detailed Firebase Setup**: See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for complete instructions
-
 ### Troubleshooting
-
-**"Firebase configuration is missing" error:**
-- Make sure `.env.local` exists and contains all Firebase variables
-- Restart the dev server after creating/updating `.env.local`
 
 **Port already in use:**
 ```bash
@@ -152,9 +103,9 @@ crasb-police-side/
 ├── contexts/           # React contexts
 │   └── AuthContext.tsx         # Authentication context
 ├── lib/                # Utility libraries
-│   └── firebase-config.ts      # Firebase configuration
+│   └── firebase-config.ts      # Application configuration
 ├── pages/              # Next.js pages
-│   ├── _app.tsx        # App wrapper with Firebase init
+│   ├── _app.tsx        # App wrapper
 │   ├── index.tsx       # Root redirect
 │   ├── login.tsx      # Login page
 │   ├── dashboard.tsx   # Main dashboard
@@ -162,7 +113,7 @@ crasb-police-side/
 │   └── analytics.tsx  # Analytics page
 ├── styles/             # Global styles
 │   └── globals.css     # Tailwind CSS and custom styles
-├── .env.example        # Environment variables template
+├── .env.example        # Environment variables template (no Firebase needed)
 ├── .env.local          # Your local config (not in git)
 ├── SETUP_GUIDE.md      # Complete setup instructions
 ├── FIREBASE_SETUP.md   # Firebase configuration guide
@@ -173,7 +124,6 @@ crasb-police-side/
 
 - **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Complete step-by-step setup guide
 - **[QUICK_START.md](./QUICK_START.md)** - 5-minute quick start
-- **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration details
 - **[SYSTEM_STRUCTURE.md](./SYSTEM_STRUCTURE.md)** - System architecture and features
 - **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - API endpoints documentation
 
