@@ -50,6 +50,68 @@ const ReportChatModal = ({ report, userId, onClose }: ReportChatModalProps) => {
   
   // Always use 'police' as the sender type since the user is always the police
   const currentRole: 'police' = 'police'
+  /**
+   * Mock conversations keyed by reporter identifier (reporterName or report.id)
+   * Each entry is a full conversation (both reporter and police messages).
+   * These messages are local-only mock data and do not write to Firestore.
+   */
+  const MOCK_CONVERSATIONS: Record<string, ChatMessage[]> = {
+    // keyed by reporter name (lowercase)
+    'rodellingcopines': [
+      { id: 'r1', text: 'saklulu pakibilis', timestamp: new Date('2025-11-22T11:41:00.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'wait lang en route na', timestamp: new Date('2025-11-22T12:01:00.000Z'), senderType: 'police' },
+      { id: 'r2', text: 'asan na kayo tukmol', timestamp: new Date('2025-11-22T14:11:00.000Z'), senderType: 'sender' },
+      { id: 'p2', text: 'saglit traffic', timestamp: new Date('2025-11-22T15:20:00.000Z'), senderType: 'police' }
+    ],
+    'wynguinarez': [
+      { id: 'r1', text: 'asan na kayo tukmol', timestamp: new Date('2025-11-22T14:11:00.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'wait lang en route na', timestamp: new Date('2025-11-22T12:01:00.000Z'), senderType: 'police' },
+      { id: 'p2', text: 'pwede bang ilapit ang sasakyan sa gilid?', timestamp: new Date('2025-11-22T14:16:00.000Z'), senderType: 'police' },
+      { id: 'p3', text: 'copy, magpapadala ng backup', timestamp: new Date('2025-11-22T14:19:10.000Z'), senderType: 'police' },
+      { id: 'p4', text: 'saglit traffic', timestamp: new Date('2025-11-22T15:20:00.000Z'), senderType: 'police' }
+    ],
+    'abramlukemora': [
+      { id: 'r1', text: 'may nahulog na tao sa kalsada', timestamp: new Date('2025-11-22T16:05:00.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'papunta ang medical team', timestamp: new Date('2025-11-22T16:07:30.000Z'), senderType: 'police' }
+    ],
+    'johnkrystiannedavid': [
+      { id: 'r1', text: 'may sunog sa 123 University Ave', timestamp: new Date('2025-11-23T07:05:10.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'papunta agad ang rescue team', timestamp: new Date('2025-11-23T07:08:00.000Z'), senderType: 'police' }
+    ],
+    'johndenzelbolito': [
+      { id: 'r1', text: 'accident lang, walang buhay na nasalba', timestamp: new Date('2025-11-24T09:30:00.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'tawagin na namin ang tow truck', timestamp: new Date('2025-11-24T09:33:30.000Z'), senderType: 'police' }
+    ],
+    'jmarkgeralddagode': [
+      { id: 'r1', text: 'may natangay na pet sa baha', timestamp: new Date('2025-11-25T17:05:00.000Z'), senderType: 'sender' },
+      { id: 'p1', text: 'ito na kami magche-check', timestamp: new Date('2025-11-25T17:12:00.000Z'), senderType: 'police' }
+    ]
+  }
+
+  // Automatically populate messages from mock conversation for the current reporter
+  // Use reporterName (lowercased, spaces removed) as the key when available; fall back to report.id
+  useEffect(() => {
+    try {
+      const keyById = (report.id || '').toString().toLowerCase()
+      const keyByName = (report.reporterName || '').toString().replace(/\s+/g, '').toLowerCase()
+      const convo = MOCK_CONVERSATIONS[keyById] || MOCK_CONVERSATIONS[keyByName]
+      if (convo && convo.length > 0) {
+        // ensure chronological order (oldest -> newest)
+        const merged = convo.slice().sort((a, b) => {
+          const ta = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp && (a.timestamp.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime()))
+          const tb = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp && (b.timestamp.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime()))
+          return ta - tb
+        })
+        setMessages(merged)
+        setLoading(false)
+        setError(null)
+        setTimeout(() => scrollToBottom(), 100)
+      }
+    } catch (err) {
+      // ignore mock population errors
+    }
+    // run once on mount or when report changes
+  }, [report.id, report.reporterName])
 
   /**
    * Initialize Firebase and set up message listener
@@ -124,21 +186,42 @@ const ReportChatModal = ({ report, userId, onClose }: ReportChatModalProps) => {
           chatQuery,
           (snapshot) => {
             if (!mounted) return
-
-            const newMessages = snapshot.docs.map(doc => {
-              const data = doc.data()
-              return {
-                id: doc.id,
-                text: data.text || '',
-                timestamp: data.timestamp,
-                senderType: data.senderType as 'police' | 'sender'
+            // If there are no live messages, try to use the per-reporter mock conversation
+            if (snapshot.empty) {
+              try {
+                const key = (report.reporterName || report.id || '').toString().replace(/\s+/g, '').toLowerCase()
+                const mock = MOCK_CONVERSATIONS[key]
+                if (mock && mock.length > 0) {
+                  // Ensure mock is sorted chronologically
+                  const merged = mock.slice().sort((a, b) => {
+                    const ta = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp && (a.timestamp.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime()))
+                    const tb = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp && (b.timestamp.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime()))
+                    return ta - tb
+                  })
+                  setMessages(merged)
+                } else {
+                  setMessages([])
+                }
+              } catch (err) {
+                setMessages([])
               }
-            })
-            
-            setMessages(newMessages)
+            } else {
+              const newMessages = snapshot.docs.map(doc => {
+                const data = doc.data()
+                return {
+                  id: doc.id,
+                  text: data.text || '',
+                  timestamp: data.timestamp,
+                  senderType: data.senderType as 'police' | 'sender'
+                }
+              })
+
+              setMessages(newMessages)
+            }
+
             setLoading(false)
             setError(null)
-            
+
             // Scroll to bottom on new messages
             setTimeout(() => scrollToBottom(), 100)
           },
