@@ -116,7 +116,6 @@ crasb-police-side/
 ├── .env.example        # Environment variables template (no Firebase needed)
 ├── .env.local          # Your local config (not in git)
 ├── SETUP_GUIDE.md      # Complete setup instructions
-├── FIREBASE_SETUP.md   # Firebase configuration guide
 └── package.json        # Dependencies
 ```
 
