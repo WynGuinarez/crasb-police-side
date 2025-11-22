@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { MessageSquare, Send, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { initializeApp } from 'firebase/app'
-import { getFirestore, Firestore, collection, query, orderBy, onSnapshot, addDoc, Timestamp, Unsubscribe } from 'firebase/firestore'
+import { getFirestore, Firestore, collection, query, where, orderBy, onSnapshot, addDoc, Timestamp, Unsubscribe } from 'firebase/firestore'
 import { getAuth, signInWithCustomToken } from 'firebase/auth'
 
 /**
@@ -12,6 +12,7 @@ interface ChatMessage {
   id?: string
   text: string
   timestamp: any // Firestore Timestamp
+  userId?: string
   senderType: 'police' | 'sender'
 }
 
@@ -108,13 +109,15 @@ const ReportChatModal = ({ report, userId, onClose }: ReportChatModalProps) => {
         const firestore = getFirestore(firebaseApp)
         firestoreRef.current = firestore
 
-        // Construct unique chat collection path per user
-        // Path: /artifacts/{appId}/public/data/active_reports/{reportId}/chats/{userId}
-        const chatCollectionPath = `artifacts/${appId}/public/data/active_reports/${report.id}/chats/${userId}`
-        const chatCollection = collection(firestore, chatCollectionPath)
-        
-        // Query messages ordered by timestamp (ascending - oldest first)
-        const chatQuery = query(chatCollection, orderBy('timestamp', 'asc'))
+  // Construct chat collection path for the report
+  // Path: /artifacts/{appId}/public/data/active_reports/{reportId}/chats
+  // Messages are stored in this collection; we filter by userId so each police user
+  // only sees messages relevant to their session.
+  const chatCollectionPath = `artifacts/${appId}/public/data/active_reports/${report.id}/chats`
+  const chatCollection = collection(firestore, chatCollectionPath)
+
+  // Query messages ordered by timestamp (ascending - oldest first) and filtered by userId
+  const chatQuery = query(chatCollection, where('userId', '==', userId), orderBy('timestamp', 'asc'))
 
         // Set up real-time listener
         const unsubscribe = onSnapshot(
@@ -181,7 +184,7 @@ const ReportChatModal = ({ report, userId, onClose }: ReportChatModalProps) => {
    */
   const sendMessage = async () => {
     const text = messageText.trim()
-    
+
     if (!text) {
       return
     }
@@ -198,29 +201,36 @@ const ReportChatModal = ({ report, userId, onClose }: ReportChatModalProps) => {
       return
     }
 
+    // Optimistically clear the input so the user can type the next message immediately.
+    // Preserve the message text in a local variable for sending and potential restore on error.
+    const messageToSend = text
+    setMessageText('')
+
     try {
       const firestore = firestoreRef.current
-      // Unique chat path per user
-      const chatCollectionPath = `artifacts/${appId}/public/data/active_reports/${report.id}/chats/${userId}`
+      // Use the report-level chats collection and include userId on each message
+      const chatCollectionPath = `artifacts/${appId}/public/data/active_reports/${report.id}/chats`
       const chatCollection = collection(firestore, chatCollectionPath)
-      
+
       const newMessage = {
-        text: text,
+        text: messageToSend,
         timestamp: Timestamp.now(),
-        senderType: currentRole
+        senderType: currentRole,
+        userId: userId
       }
 
       await addDoc(chatCollection, newMessage)
-      
-      // Clear input after successful send
-      setMessageText('')
+
       toast.success('Message sent!')
     } catch (error: any) {
       console.error('Error sending message:', error)
       const errorMessage = `Failed to send message: ${error.message || 'Unknown error'}`
       setError(errorMessage)
       toast.error(errorMessage)
-      
+
+      // Restore the message text so the user doesn't lose what they typed
+      setMessageText(messageToSend)
+
       // Clear error after 5 seconds
       setTimeout(() => {
         setError(null)

@@ -164,7 +164,7 @@ const PoliceSenderChat = ({ reportId, className = '' }: PoliceSenderChatProps) =
    */
   const sendMessage = async () => {
     const text = messageText.trim()
-    
+
     if (!text) {
       return
     }
@@ -181,28 +181,33 @@ const PoliceSenderChat = ({ reportId, className = '' }: PoliceSenderChatProps) =
       return
     }
 
+    // Optimistically clear input so user can continue typing. Keep a copy to restore on error.
+    const messageToSend = text
+    setMessageText('')
+
     try {
       const firestore = firestoreRef.current
       const messagesCollectionPath = `artifacts/${appId}/public/data/police_sender_chats`
       const messagesCollection = collection(firestore, messagesCollectionPath)
       
       const newMessage = {
-        text: text,
+        text: messageToSend,
         timestamp: Timestamp.now(),
         senderType: currentRole
       }
 
       await addDoc(messagesCollection, newMessage)
       
-      // Clear input after successful send
-      setMessageText('')
       toast.success('Message sent!')
     } catch (error: any) {
       console.error('Error sending message:', error)
       const errorMessage = `Failed to send message: ${error.message || 'Unknown error'}`
       setError(errorMessage)
       toast.error(errorMessage)
-      
+
+      // Restore the message the user typed
+      setMessageText(messageToSend)
+
       // Clear error after 5 seconds
       setTimeout(() => {
         setError(null)
