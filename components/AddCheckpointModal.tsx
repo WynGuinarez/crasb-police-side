@@ -1,6 +1,7 @@
 import { Clock, MapPin, Minus, Phone, Plus, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Checkpoint {
   id: string
@@ -38,6 +39,16 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
   })
   const [loading, setLoading] = useState(false)
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Create a new police checkpoint.
+   * METHOD: POST
+   * ENDPOINT: /api/checkpoints
+   * 
+   * Replace the onAdd callback with an API call here.
+   * The API should accept the checkpoint data (without id) in the request body.
+   * The API should return the created checkpoint with an assigned id.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -62,28 +73,32 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
 
     setLoading(true)
     
-    // Simulate API call
-    setTimeout(() => {
-      const checkpoint: Omit<Checkpoint, 'id'> = {
-        name: formData.name.trim(),
-        location: {
-          lat: parseFloat(formData.lat) || 14.5995,
-          lng: parseFloat(formData.lng) || 120.9842,
-          address: formData.address.trim()
-        },
-        assignedOfficers: formData.assignedOfficers
-          .map(officer => officer.trim())
-          .filter(officer => officer.length > 0),
-        schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
-        timeStart: formData.timeStart,
-        timeEnd: formData.timeEnd,
-        status: formData.status,
-        contactNumber: formData.contactNumber.trim()
-      }
-      
-      onAdd(checkpoint)
-      setLoading(false)
-    }, 1000)
+    // Prepare checkpoint data for API submission
+    const checkpoint: Omit<Checkpoint, 'id'> = {
+      name: formData.name.trim(),
+      location: {
+        lat: parseFloat(formData.lat) || 14.5995,
+        lng: parseFloat(formData.lng) || 120.9842,
+        address: formData.address.trim()
+      },
+      assignedOfficers: formData.assignedOfficers
+        .map(officer => officer.trim())
+        .filter(officer => officer.length > 0),
+      schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
+      timeStart: formData.timeStart,
+      timeEnd: formData.timeEnd,
+      status: formData.status,
+      contactNumber: formData.contactNumber.trim()
+    }
+    
+    // TODO: Replace with API call: POST /api/checkpoints
+    // const response = await fetch('/api/checkpoints', { method: 'POST', body: JSON.stringify(checkpoint) })
+    // const createdCheckpoint = await response.json()
+    // onAdd(createdCheckpoint)
+    
+    // Temporary: Call parent callback (to be replaced with API call)
+    onAdd(checkpoint)
+    setLoading(false)
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -248,7 +263,7 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
                         const newOfficers = formData.assignedOfficers.filter((_, i) => i !== index)
                         setFormData(prev => ({ ...prev, assignedOfficers: newOfficers }))
                       }}
-                      className="p-2 text-red-600 hover:bg-red-50/80 backdrop-blur-sm rounded-lg transition-all duration-200 border border-red-200/50 shadow-sm"
+                      className="p-2 text-red-600 hover:bg-red-50/80 backdrop-blur-sm rounded-2xl transition-all duration-200 border border-red-200/50 shadow-sm"
                       title="Remove officer"
                     >
                       <Minus className="h-5 w-5" />
@@ -261,7 +276,7 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
                 onClick={() => {
                   setFormData(prev => ({ ...prev, assignedOfficers: [...prev.assignedOfficers, ''] }))
                 }}
-                className="w-full flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300/60 rounded-lg text-gray-600 bg-white/50 backdrop-blur-sm hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50/50 transition-all duration-200 shadow-sm"
+                className="w-full flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300/60 rounded-2xl text-gray-600 bg-white/50 backdrop-blur-sm hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50/50 transition-all duration-200 shadow-sm"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Officer
@@ -347,8 +362,9 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
               onChange={(e) => handleInputChange('status', e.target.value)}
               className="input-field"
             >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              {TemporaryDatabase.checkpointStatuses.map(status => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
             </select>
           </div>
 

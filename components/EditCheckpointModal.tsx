@@ -1,6 +1,7 @@
 import { Clock, MapPin, Phone, Trash2, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Checkpoint {
   id: string
@@ -41,6 +42,15 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
   const [loading, setLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Update an existing police checkpoint.
+   * METHOD: PATCH
+   * ENDPOINT: /api/checkpoints/:checkpointId
+   * 
+   * Replace the onUpdate callback with an API call here.
+   * The API should accept the updated checkpoint data in the request body.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -65,33 +75,49 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
 
     setLoading(true)
     
-    // Simulate API call
-    setTimeout(() => {
-      const updatedCheckpoint: Checkpoint = {
-        ...checkpoint,
-        name: formData.name.trim(),
-        location: {
-          lat: parseFloat(formData.lat) || checkpoint.location.lat,
-          lng: parseFloat(formData.lng) || checkpoint.location.lng,
-          address: formData.address.trim()
-        },
-        assignedOfficers: formData.assignedOfficers
-          .split(',')
-          .map(officer => officer.trim())
-          .filter(officer => officer.length > 0),
-        schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
-        timeStart: formData.timeStart,
-        timeEnd: formData.timeEnd,
-        status: formData.status as 'active' | 'inactive',
-        contactNumber: formData.contactNumber.trim()
-      }
-      
-      onUpdate(updatedCheckpoint)
-      setLoading(false)
-    }, 1000)
+    // Prepare updated checkpoint data for API submission
+    const updatedCheckpoint: Checkpoint = {
+      ...checkpoint,
+      name: formData.name.trim(),
+      location: {
+        lat: parseFloat(formData.lat) || checkpoint.location.lat,
+        lng: parseFloat(formData.lng) || checkpoint.location.lng,
+        address: formData.address.trim()
+      },
+      assignedOfficers: formData.assignedOfficers
+        .split(',')
+        .map(officer => officer.trim())
+        .filter(officer => officer.length > 0),
+      schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
+      timeStart: formData.timeStart,
+      timeEnd: formData.timeEnd,
+      status: formData.status as 'active' | 'inactive',
+      contactNumber: formData.contactNumber.trim()
+    }
+    
+    // TODO: Replace with API call: PATCH /api/checkpoints/${checkpoint.id}
+    // const response = await fetch(`/api/checkpoints/${checkpoint.id}`, { method: 'PATCH', body: JSON.stringify(updatedCheckpoint) })
+    // const savedCheckpoint = await response.json()
+    // onUpdate(savedCheckpoint)
+    
+    // Temporary: Call parent callback (to be replaced with API call)
+    onUpdate(updatedCheckpoint)
+    setLoading(false)
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Delete a police checkpoint.
+   * METHOD: DELETE
+   * ENDPOINT: /api/checkpoints/:checkpointId
+   * 
+   * Replace the onDelete callback with an API call here.
+   */
   const handleDelete = () => {
+    // TODO: Replace with API call: DELETE /api/checkpoints/${checkpoint.id}
+    // await fetch(`/api/checkpoints/${checkpoint.id}`, { method: 'DELETE' })
+    
+    // Temporary: Call parent callback (to be replaced with API call)
     onDelete(checkpoint.id)
     onClose()
   }
@@ -327,8 +353,9 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
               onChange={(e) => handleInputChange('status', e.target.value)}
               className="input-field"
             >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              {TemporaryDatabase.checkpointStatuses.map(status => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
             </select>
           </div>
 

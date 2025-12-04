@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BarChart3,
   Bell,
+  CheckCircle,
   Home,
   Info,
   LogOut,
@@ -12,6 +13,7 @@ import {
   Trash2,
   X
 } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -21,6 +23,7 @@ import EditCheckpointModal from '../components/EditCheckpointModal'
 import ReportDetailsModal from '../components/ReportDetailsModal'
 import MapLegendModal from '../components/MapLegendModal'
 import { useAuth } from '../contexts/AuthContext'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Checkpoint {
   id: string
@@ -111,106 +114,35 @@ const LiveMap = () => {
   const [checkpointFilter, setCheckpointFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedPin, setSelectedPin] = useState<{ type: 'report' | 'checkpoint' | 'office', data: Report | Checkpoint | null } | null>(null)
 
-  // Mock data - replace with real API calls
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch all police checkpoints for map display.
+   * METHOD: GET
+   * ENDPOINT: /api/checkpoints
+   * 
+   * Replace the call to TemporaryDatabase.checkpoints with the actual API call here.
+   * Expected response format should match the Checkpoint[] interface.
+   */
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch all active reports for map display.
+   * METHOD: GET
+   * ENDPOINT: /api/reports/active
+   * 
+   * Replace the call to TemporaryDatabase.activeReports with the actual API call here.
+   * Expected response format should match the Report[] interface.
+   */
   useEffect(() => {
-    const mockCheckpoints: Checkpoint[] = [
-      {
-        id: '1',
-        name: 'Main Police Station',
-        location: {
-          lat: 14.5995,
-          lng: 120.9842,
-          address: 'Rizal Park, Malate, Manila'
-        },
-        assignedOfficers: ['Officer John', 'Officer Maria'],
-        schedule: '24/7',
-        timeStart: '00:00',
-        timeEnd: '23:59',
-        status: 'active',
-        contactNumber: '+63 2 8523 4567'
-      },
-      {
-        id: '2',
-        name: 'Traffic Checkpoint Alpha',
-        location: {
-          lat: 14.6042,
-          lng: 120.9822,
-          address: 'EDSA Corner Ayala Avenue, Makati'
-        },
-        assignedOfficers: ['Officer Pedro', 'Officer Ana'],
-        schedule: '06:00 - 22:00',
-        timeStart: '06:00',
-        timeEnd: '22:00',
-        status: 'active',
-        contactNumber: '+63 2 8845 1234'
-      },
-      {
-        id: '3',
-        name: 'Emergency Response Unit',
-        location: {
-          lat: 14.5905,
-          lng: 120.9789,
-          address: 'Quezon City Hall, Diliman'
-        },
-        assignedOfficers: ['Officer Carlos', 'Officer Sofia'],
-        schedule: '12:00 - 00:00',
-        timeStart: '12:00',
-        timeEnd: '00:00',
-        status: 'active',
-        contactNumber: '+63 2 8927 8901'
-      }
-    ]
-
-    const mockReports: Report[] = [
-      {
-        id: '1',
-        reporterName: 'John Denzel Bolito',
-        reporterPhone: '+63 912 345 6789',
-        reporterEmail: 'John.denzel.bolito@email.com',
-        city: 'Manila',
-        barangay: 'Malate',
-        category: 'Crime',
-        status: 'pending',
-        description: 'Suspicious activity near the park. Two individuals acting suspiciously around parked vehicles.',
-        location: {
-          lat: 14.6015,
-          lng: 120.9862,
-          address: 'Rizal Park, Malate, Manila'
-        },
-        attachments: ['image1.jpg', 'video1.mp4'],
-        emergencyContact: {
-          name: 'Jane Doe',
-          phone: '+63 912 345 6790'
-        },
-        timestamp: '2024-01-15T10:30:00Z'
-      },
-      {
-        id: '2',
-        reporterName: 'Rodel Lingcopines',
-        reporterPhone: '+63 917 123 4567',
-        reporterEmail: 'Lingcopines@email.com',
-        city: 'Quezon City',
-        barangay: 'Diliman',
-        category: 'Fire',
-        status: 'acknowledged',
-        description: 'Fire alarm triggered in residential building. Smoke visible from 3rd floor.',
-        location: {
-          lat: 14.6539,
-          lng: 121.0689,
-          address: '123 University Ave, Diliman, Quezon City'
-        },
-        attachments: ['fire_image.jpg'],
-        emergencyContact: {
-          name: 'Pedro Santos',
-          phone: '+63 917 123 4568'
-        },
-        timestamp: '2024-01-15T09:15:00Z'
-      }
-    ]
-
-    // Load data immediately (no artificial delay)
-    setCheckpoints(mockCheckpoints)
-    setReports(mockReports)
+    // Load data from temporary database (to be replaced with API calls)
+    // TODO: Replace with API call: GET /api/checkpoints
+    const checkpoints = TemporaryDatabase.checkpoints
+    // TODO: Replace with API call: GET /api/reports/active
+    const reports = TemporaryDatabase.activeReports.filter(r => 
+      r.status === 'pending' || r.status === 'acknowledged' || r.status === 'en-route'
+    )
+    
+    setCheckpoints(checkpoints)
+    setReports(reports)
     setLoading(false)
   }, [])
 
@@ -220,9 +152,19 @@ const LiveMap = () => {
     }
   }, [isAuthenticated, router])
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Poll for checkpoint status updates (active/inactive based on time).
+   * METHOD: GET (polling) or WebSocket/SSE (real-time)
+   * ENDPOINT: /api/checkpoints/status-updates (polling) or WebSocket connection
+   * 
+   * This polling can be replaced with WebSocket or Server-Sent Events for real-time updates.
+   * Alternatively, the backend can calculate active/inactive status on-the-fly when fetching checkpoints.
+   */
   // Refresh checkpoint status every minute to update active/inactive status
   useEffect(() => {
     const interval = setInterval(() => {
+      // TODO: Replace with API call or WebSocket: GET /api/checkpoints/status-updates
       // Force re-render by updating state (checkpoints array reference stays same, but component will re-render)
       setCheckpoints(prev => [...prev])
     }, 60000) // Update every minute
@@ -238,11 +180,7 @@ const LiveMap = () => {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
-    if (tab === 'dashboard') {
-      router.push('/dashboard')
-    } else if (tab === 'analytics') {
-      router.push('/analytics')
-    }
+    // Navigation handled by Link components for faster transitions
   }
 
   const handleAddCheckpoint = (checkpoint: Omit<Checkpoint, 'id'>) => {
@@ -255,7 +193,17 @@ const LiveMap = () => {
     setShowAddCheckpoint(false)
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Update an existing police checkpoint.
+   * METHOD: PATCH
+   * ENDPOINT: /api/checkpoints/:checkpointId
+   * 
+   * Replace the local state update with an API call here.
+   * The API should accept the updated checkpoint data in the request body.
+   */
   const handleEditCheckpoint = (updatedCheckpoint: Checkpoint) => {
+    // TODO: Replace with API call: PATCH /api/checkpoints/${updatedCheckpoint.id}
     setCheckpoints(prev => prev.map(checkpoint => 
       checkpoint.id === updatedCheckpoint.id ? updatedCheckpoint : checkpoint
     ))
@@ -267,7 +215,16 @@ const LiveMap = () => {
     setSelectedCheckpoint(null)
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Delete a police checkpoint.
+   * METHOD: DELETE
+   * ENDPOINT: /api/checkpoints/:checkpointId
+   * 
+   * Replace the local state update with an API call here.
+   */
   const handleDeleteCheckpoint = (checkpointId: string) => {
+    // TODO: Replace with API call: DELETE /api/checkpoints/${checkpointId}
     setCheckpoints(prev => prev.filter(checkpoint => checkpoint.id !== checkpointId))
     toast.success('Checkpoint deleted successfully')
   }
@@ -427,33 +384,46 @@ const LiveMap = () => {
         {/* Navigation Tabs */}
         <div className="mb-4">
           <nav className="flex space-x-6">
-            <button
-              onClick={() => handleTabChange('dashboard')}
+            <Link
+              href="/dashboard"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <Home className="h-4 w-4 inline mr-2" />
               Dashboard
-            </button>
-            <button
-              onClick={() => handleTabChange('map')}
+            </Link>
+            <Link
+              href="/map"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'map' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <Map className="h-4 w-4 inline mr-2" />
               Live Map
-            </button>
-            <button
-              onClick={() => handleTabChange('analytics')}
+            </Link>
+            <Link
+              href="/analytics"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'analytics' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <BarChart3 className="h-4 w-4 inline mr-2" />
               Analytics
-            </button>
+            </Link>
+            <Link
+              href="/resolved-cases"
+              prefetch={true}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'resolved-cases' ? 'tab-active' : 'tab-inactive'
+              }`}
+            >
+              <CheckCircle className="h-4 w-4 inline mr-2" />
+              Resolved Cases
+            </Link>
           </nav>
         </div>
 
@@ -483,7 +453,7 @@ const LiveMap = () => {
           <div className="flex flex-wrap gap-2 mb-3 items-center">
             <button
               onClick={() => setActiveFilters(prev => ({ ...prev, activeCases: !prev.activeCases }))}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+              className={`px-4 py-2 rounded-2xl text-sm font-medium transition-colors flex items-center ${
                 activeFilters.activeCases
                   ? 'bg-red-100 text-red-700 border-2 border-red-500'
                   : 'bg-gray-100 text-gray-600 border-2 border-transparent'
@@ -494,7 +464,7 @@ const LiveMap = () => {
             </button>
             <button
               onClick={() => setActiveFilters(prev => ({ ...prev, policeCheckpoint: !prev.policeCheckpoint }))}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+              className={`px-4 py-2 rounded-2xl text-sm font-medium transition-colors flex items-center ${
                 activeFilters.policeCheckpoint
                   ? 'bg-primary-100 text-primary-700 border-2 border-primary-600'
                   : 'bg-gray-100 text-gray-600 border-2 border-transparent'
@@ -505,7 +475,7 @@ const LiveMap = () => {
             </button>
             <button
               onClick={() => setActiveFilters(prev => ({ ...prev, policeOffices: !prev.policeOffices }))}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+              className={`px-4 py-2 rounded-2xl text-sm font-medium transition-colors flex items-center ${
                 activeFilters.policeOffices
                   ? 'bg-green-100 text-green-700 border-2 border-green-500'
                   : 'bg-gray-100 text-gray-600 border-2 border-transparent'
@@ -521,11 +491,11 @@ const LiveMap = () => {
                 <select
                   value={checkpointFilter}
                   onChange={(e) => setCheckpointFilter(e.target.value as 'all' | 'active' | 'inactive')}
-                  className="px-4 py-2 rounded-lg text-sm font-medium border-2 border-primary-600 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  className="px-4 py-2 rounded-2xl text-sm font-medium border-2 border-primary-600 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                  <option value="all">All Checkpoints</option>
-                  <option value="active">Active Checkpoints</option>
-                  <option value="inactive">Inactive Checkpoints</option>
+                  {TemporaryDatabase.checkpointFilters.map(filter => (
+                    <option key={filter.value} value={filter.value}>{filter.label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -761,6 +731,16 @@ const LiveMap = () => {
             setSelectedReportForModal(null)
           }}
           onStatusChange={(reportId, newStatus) => {
+            /*
+             * TODO: API INTEGRATION POINT
+             * ACTION: Update the status of a specific report.
+             * METHOD: PATCH
+             * ENDPOINT: /api/reports/:reportId/status
+             * 
+             * Replace the local state update with an API call here.
+             * The API should accept: { status: string } in the request body.
+             */
+            // TODO: Replace with API call: PATCH /api/reports/${reportId}/status
             setReports(prev => prev.map(report => 
               report.id === reportId ? { ...report, status: newStatus } : report
             ))

@@ -1,6 +1,7 @@
 import { Clock, Copy, ExternalLink, MapPin, Navigation, QrCode, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Report {
   id: string
@@ -52,12 +53,17 @@ const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }: DirectionsMod
   const [eta, setEta] = useState<string>(report.eta || '')
   const [loading, setLoading] = useState(false)
 
-  // Mock police station location - in a real app, this would come from user settings or API
-  const policeStationLocation = {
-    lat: 14.5995,
-    lng: 120.9842,
-    address: 'Manila Police Station, Rizal Park, Manila'
-  }
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch the police station location (user's assigned station).
+   * METHOD: GET
+   * ENDPOINT: /api/police-station/location
+   * 
+   * Replace the call to TemporaryDatabase.policeStationLocation with the actual API call here.
+   * This should return the location of the logged-in user's assigned police station.
+   */
+  // Load police station location from temporary database (to be replaced with API call)
+  const policeStationLocation = TemporaryDatabase.policeStationLocation
 
   // Calculate distance and ETA using Google Maps Directions Service
   useEffect(() => {

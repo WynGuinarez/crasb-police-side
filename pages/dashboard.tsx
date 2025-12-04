@@ -13,6 +13,7 @@ import {
     Navigation,
     User
 } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -20,6 +21,7 @@ import DirectionsModal from '../components/DirectionsModal'
 import ReportDetailsModal from '../components/ReportDetailsModal'
 import ReportChatModal from '../components/ReportChatModal'
 import { useAuth } from '../contexts/AuthContext'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Report {
   id: string
@@ -58,85 +60,33 @@ const Dashboard = () => {
   const [showChatModal, setShowChatModal] = useState(false)
   const [newReportAlert, setNewReportAlert] = useState(false)
 
-  // Mock data - replace with real API calls
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch the list of all active reports/cases for the dashboard.
+   * METHOD: GET
+   * ENDPOINT: /api/reports/active
+   * 
+   * Replace the call to TemporaryDatabase.activeReports with the actual API call here.
+   * Expected response format should match the Report[] interface.
+   */
   useEffect(() => {
-    const mockReports: Report[] = [
-      {
-        id: '1',
-        reporterName: 'Rodel Lingcopines',
-        reporterPhone: '+63 912 345 6789',
-        reporterEmail: 'Lingcopines@email.com',
-        city: 'Manila',
-        barangay: 'Malate',
-        category: 'Crime',
-        status: 'pending',
-        description: 'Suspicious activity near the park. Two individuals acting suspiciously around parked vehicles.',
-        location: {
-          lat: 14.5995,
-          lng: 120.9842,
-          address: 'Rizal Park, Malate, Manila'
-        },
-        attachments: ['image1.jpg', 'video1.mp4'],
-        emergencyContact: {
-          name: 'Rodel Lingcopines',
-          phone: '+63 912 345 6790'
-        },
-        timestamp: '2024-01-15T10:30:00Z'
-      },
-      {
-        id: '2',
-        reporterName: 'Wyn Guinarez',
-        reporterPhone: '+63 917 123 4567',
-        reporterEmail: 'wynguinarez@email.com',
-        city: 'Quezon City',
-        barangay: 'Diliman',
-        category: 'Fire',
-        status: 'acknowledged',
-        description: 'Fire alarm triggered in residential building. Smoke visible from 3rd floor.',
-        location: {
-          lat: 14.6539,
-          lng: 121.0689,
-          address: '123 University Ave, Diliman, Quezon City'
-        },
-        attachments: ['fire_image.jpg'],
-        emergencyContact: {
-          name: 'Wyn Guinarez',
-          phone: '+63 917 123 4568'
-        },
-        timestamp: '2024-01-15T09:15:00Z'
-      },
-      {
-        id: '3',
-        reporterName: 'Abram Luke Mora',
-        reporterPhone: '+63 918 765 4321',
-        reporterEmail: 'ambram.mora@email.com',
-        city: 'Makati',
-        barangay: 'Ayala',
-        category: 'Medical',
-        status: 'en-route',
-        description: 'Medical emergency at office building. Person collapsed and needs immediate medical attention.',
-        location: {
-          lat: 14.5547,
-          lng: 121.0244,
-          address: 'Ayala Avenue, Makati City'
-        },
-        attachments: [],
-        emergencyContact: {
-          name: 'Abram Luke Mora',
-          phone: '+63 918 765 4322'
-        },
-        timestamp: '2024-01-15T08:45:00Z'
-      }
-    ]
+    // Load data from temporary database (to be replaced with API call)
+    const activeReports = TemporaryDatabase.activeReports
+    setReports(activeReports)
+    setLoading(false)
 
-    // Simulate loading
-    setTimeout(() => {
-      setReports(mockReports)
-      setLoading(false)
-    }, 1000)
-
-    // Simulate new report alert
+    /*
+     * TODO: API INTEGRATION POINT
+     * ACTION: Listen for new report notifications/alerts.
+     * METHOD: WebSocket or Server-Sent Events (SSE)
+     * ENDPOINT: /api/reports/notifications (WebSocket) or /api/reports/stream (SSE)
+     * 
+     * Replace the polling mechanism with WebSocket or SSE for real-time notifications.
+     * This will provide instant alerts when new reports are received.
+     */
+    // Simulate new report alert (to be replaced with WebSocket/SSE)
     const alertInterval = setInterval(() => {
+      // TODO: Replace with WebSocket/SSE connection for real-time notifications
       if (Math.random() < 0.1) { // 10% chance every 5 seconds
         setNewReportAlert(true)
         toast.success('🚨 New CRASH Report Received!', {
@@ -163,10 +113,11 @@ const Dashboard = () => {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
+    // Use router.push with shallow routing for faster navigation
     if (tab === 'map') {
-      router.push('/map')
+      router.push('/map', undefined, { shallow: false })
     } else if (tab === 'analytics') {
-      router.push('/analytics')
+      router.push('/analytics', undefined, { shallow: false })
     }
   }
 
@@ -190,14 +141,34 @@ const Dashboard = () => {
     setSelectedReport(null)
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Update the status of a specific report/case.
+   * METHOD: PATCH
+   * ENDPOINT: /api/reports/:reportId/status
+   * 
+   * Replace the local state update with an API call here.
+   * The API should accept: { status: string } in the request body.
+   */
   const handleStatusChange = (reportId: string, newStatus: Report['status']) => {
+    // TODO: Replace with API call: PATCH /api/reports/${reportId}/status
     setReports(prev => prev.map(report => 
       report.id === reportId ? { ...report, status: newStatus } : report
     ))
     toast.success('Status updated successfully')
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Update distance and ETA information for a specific report.
+   * METHOD: PATCH
+   * ENDPOINT: /api/reports/:reportId/distance-eta
+   * 
+   * Replace the local state update with an API call here.
+   * The API should accept: { distance: string, eta: string } in the request body.
+   */
   const handleDistanceEtaUpdate = (reportId: string, distance: string, eta: string) => {
+    // TODO: Replace with API call: PATCH /api/reports/${reportId}/distance-eta
     setReports(prev => prev.map(report => 
       report.id === reportId ? { ...report, distance, eta } : report
     ))
@@ -318,33 +289,46 @@ const Dashboard = () => {
         {/* Navigation Tabs */}
         <div className="mb-4">
           <nav className="flex space-x-6">
-            <button
-              onClick={() => handleTabChange('dashboard')}
+            <Link
+              href="/dashboard"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <Home className="h-4 w-4 inline mr-2" />
               Dashboard
-            </button>
-            <button
-              onClick={() => handleTabChange('map')}
+            </Link>
+            <Link
+              href="/map"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'map' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <Map className="h-4 w-4 inline mr-2" />
               Live Map
-            </button>
-            <button
-              onClick={() => handleTabChange('analytics')}
+            </Link>
+            <Link
+              href="/analytics"
+              prefetch={true}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'analytics' ? 'tab-active' : 'tab-inactive'
               }`}
             >
               <BarChart3 className="h-4 w-4 inline mr-2" />
               Analytics
-            </button>
+            </Link>
+            <Link
+              href="/resolved-cases"
+              prefetch={true}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'resolved-cases' ? 'tab-active' : 'tab-inactive'
+              }`}
+            >
+              <CheckCircle className="h-4 w-4 inline mr-2" />
+              Resolved Cases
+            </Link>
           </nav>
         </div>
 

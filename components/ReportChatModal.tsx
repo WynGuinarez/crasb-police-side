@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { MessageSquare, X } from 'lucide-react'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 /**
  * Chat Message Interface
@@ -37,46 +38,20 @@ const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
   const [messageText, setMessageText] = useState('')
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  /**
-   * Mock conversations keyed by reporter identifier (reporterName)
-   * Each entry is a full conversation (both reporter and police messages).
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch chat messages for a specific report.
+   * METHOD: GET
+   * ENDPOINT: /api/reports/:reportId/messages
+   * 
+   * Replace the call to TemporaryDatabase.chatConversations with the actual API call here.
+   * Expected response format should match the ChatMessage[] interface.
    */
-  const MOCK_CONVERSATIONS: Record<string, ChatMessage[]> = {
-    'rodellingcopines': [
-      { id: 'r1', text: 'saklulu pakibilis', timestamp: new Date('2025-11-22T11:41:00.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'wait lang en route na', timestamp: new Date('2025-11-22T12:01:00.000Z'), senderType: 'police' },
-      { id: 'r2', text: 'asan na kayo tukmol', timestamp: new Date('2025-11-22T14:11:00.000Z'), senderType: 'sender' },
-      { id: 'p2', text: 'saglit traffic', timestamp: new Date('2025-11-22T15:20:00.000Z'), senderType: 'police' }
-    ],
-    'wynguinarez': [
-      { id: 'r1', text: 'asan na kayo tukmol', timestamp: new Date('2025-11-22T14:11:00.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'wait lang en route na', timestamp: new Date('2025-11-22T12:01:00.000Z'), senderType: 'police' },
-      { id: 'p2', text: 'pwede bang ilapit ang sasakyan sa gilid?', timestamp: new Date('2025-11-22T14:16:00.000Z'), senderType: 'police' },
-      { id: 'p3', text: 'copy, magpapadala ng backup', timestamp: new Date('2025-11-22T14:19:10.000Z'), senderType: 'police' },
-      { id: 'p4', text: 'saglit traffic', timestamp: new Date('2025-11-22T15:20:00.000Z'), senderType: 'police' }
-    ],
-    'abramlukemora': [
-      { id: 'r1', text: 'may nahulog na tao sa kalsada', timestamp: new Date('2025-11-22T16:05:00.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'papunta ang medical team', timestamp: new Date('2025-11-22T16:07:30.000Z'), senderType: 'police' }
-    ],
-    'johnkrystiannedavid': [
-      { id: 'r1', text: 'may sunog sa 123 University Ave', timestamp: new Date('2025-11-23T07:05:10.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'papunta agad ang rescue team', timestamp: new Date('2025-11-23T07:08:00.000Z'), senderType: 'police' }
-    ],
-    'johndenzelbolito': [
-      { id: 'r1', text: 'accident lang, walang buhay na nasalba', timestamp: new Date('2025-11-24T09:30:00.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'tawagin na namin ang tow truck', timestamp: new Date('2025-11-24T09:33:30.000Z'), senderType: 'police' }
-    ],
-    'jmarkgeralddagode': [
-      { id: 'r1', text: 'may natangay na pet sa baha', timestamp: new Date('2025-11-25T17:05:00.000Z'), senderType: 'sender' },
-      { id: 'p1', text: 'ito na kami magche-check', timestamp: new Date('2025-11-25T17:12:00.000Z'), senderType: 'police' }
-    ]
-  }
-
-  // Load mock conversation on mount
+  // Load conversation on mount
   useEffect(() => {
+    // TODO: Replace with API call: GET /api/reports/${report.id}/messages
     const keyByName = (report.reporterName || '').toString().replace(/\s+/g, '').toLowerCase()
-    const convo = MOCK_CONVERSATIONS[keyByName]
+    const convo = TemporaryDatabase.chatConversations[keyByName]
     if (convo && convo.length > 0) {
       // Sort chronologically (oldest -> newest)
       const sorted = convo.slice().sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
@@ -198,9 +173,9 @@ const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
                   message.senderType === 'police' ? 'justify-end' : 'justify-start'
                 }`}>
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
                     message.senderType === 'police'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-gradient-primary text-white'
                       : 'bg-gray-300 text-gray-800'
                   }`}>
                   {/* Message Text */}
@@ -235,7 +210,7 @@ const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
             <button
               type="submit"
               disabled={!messageText.trim()}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200"
+              className="px-6 py-2 bg-gradient-primary text-white rounded-2xl font-semibold hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send
             </button>

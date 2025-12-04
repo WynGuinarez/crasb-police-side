@@ -148,9 +148,9 @@ module.exports = {
         },
       },
       backgroundImage: {
-        'gradient-primary': 'linear-gradient(to right, #62CFF4, #2C67F2)',
-        'gradient-primary-horizontal': 'linear-gradient(to right, #62CFF4, #2C67F2)',
-        'gradient-primary-vertical': 'linear-gradient(to bottom, #62CFF4, #2C67F2)',
+        'gradient-primary': 'linear-gradient(to right, #60a5fa, #2C67F2)',
+        'gradient-primary-horizontal': 'linear-gradient(to right, #60a5fa, #2C67F2)',
+        'gradient-primary-vertical': 'linear-gradient(to bottom, #60a5fa, #2C67F2)',
       },
     },
   },

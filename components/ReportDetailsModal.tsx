@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 interface Report {
   id: string
@@ -58,30 +59,60 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
     setSelectedStatus(report.status)
   }, [report.status])
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Update the status of a specific report.
+   * METHOD: PATCH
+   * ENDPOINT: /api/reports/:reportId/status
+   * 
+   * Replace the onStatusChange callback with an API call here.
+   * The API should accept: { status: string } in the request body.
+   */
   const handleStatusChange = () => {
     if (selectedStatus !== report.status) {
+      // TODO: Replace with API call: PATCH /api/reports/${report.id}/status
+      // await fetch(`/api/reports/${report.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: selectedStatus }) })
+      
+      // Temporary: Call parent callback (to be replaced with API call)
       onStatusChange(report.id, selectedStatus)
     }
     onClose()
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Send a message to the reporter for a specific report.
+   * METHOD: POST
+   * ENDPOINT: /api/reports/:reportId/messages
+   * 
+   * Replace the local notification with an API call here.
+   * The API should accept: { text: string, senderType: 'police' } in the request body.
+   */
   const handleSendMessage = () => {
     if (message.trim()) {
+      // TODO: Replace with API call: POST /api/reports/${report.id}/messages
       // In a real app, this would send a message to the reporter
       toast.success('Message sent to reporter')
       setMessage('')
     }
   }
 
+  /*
+   * TODO: API INTEGRATION POINT
+   * ACTION: Fetch available report status options (if statuses are dynamic).
+   * METHOD: GET
+   * ENDPOINT: /api/reports/status-options
+   * 
+   * If statuses are static, use TemporaryDatabase.reportStatuses.
+   * If statuses are dynamic, replace with API call here.
+   */
   const getStatusOptions = () => {
-    const statuses: { value: Report['status']; label: string }[] = [
-      { value: 'pending', label: 'Pending' },
-      { value: 'acknowledged', label: 'Acknowledged' },
-      { value: 'en-route', label: 'En Route' },
-      { value: 'resolved', label: 'Resolved' },
-      { value: 'canceled', label: 'Canceled' }
-    ]
-    return statuses
+    // Using static status options from TemporaryDatabase
+    // TODO: If statuses are dynamic, replace with API call: GET /api/reports/status-options
+    return TemporaryDatabase.reportStatuses.map(status => ({
+      value: status.value as Report['status'],
+      label: status.label
+    }))
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -316,7 +347,7 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
                           : `${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}/storage/v1/object/public/attachments/${attachment}`
                         window.open(url, '_blank')
                       }}
-                      className="bg-white/60 backdrop-blur-sm hover:bg-white/80 border border-white/40 rounded-lg p-4 text-center transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                      className="bg-white/60 backdrop-blur-sm hover:bg-white/80 border border-white/40 rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
                       title="Click to view attachment"
                     >
                       {attachment.endsWith('.mp4') || attachment.endsWith('.mov') || attachment.endsWith('.avi') ? (

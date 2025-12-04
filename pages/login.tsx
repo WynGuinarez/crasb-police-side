@@ -68,27 +68,27 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center glass-bg-static py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl ring-2 ring-white/50">
+          <div className="mx-auto h-16 w-16 bg-white/95 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl ring-2 ring-white/60 hover:scale-105 transition-transform">
             <span className="text-primary-600 text-2xl font-bold">C</span>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-white drop-shadow-md">
+          <h2 className="mt-6 text-3xl font-bold text-white drop-shadow-lg">
             CRASH Dashboard
           </h2>
-          <p className="mt-2 text-sm text-white/95 font-medium">
+          <p className="mt-2 text-sm text-white/90 font-medium drop-shadow">
             Police Authority Login
           </p>
         </div>
 
         {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="glass-card-strong p-8 space-y-5">
+          <div className="bg-white/25 backdrop-blur-2xl rounded-2xl shadow-2xl p-8 space-y-5 border border-white/40">
             {/* Username Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="username" className="block text-sm font-semibold text-white/95 mb-2 drop-shadow">
                 Username
               </label>
               <div className="relative">
@@ -97,25 +97,25 @@ const Login = () => {
                   name="username"
                   type="text"
                   required
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-white/40 rounded-lg bg-white/30 backdrop-blur-lg text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-400/70 focus:border-white/60 focus:bg-white/40 transition-all duration-200 shadow-md font-medium"
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
                 {errors.username && (
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <AlertCircle className="h-5 w-5 text-danger-500" />
+                    <AlertCircle className="h-5 w-5 text-red-500 drop-shadow" />
                   </div>
                 )}
               </div>
               {errors.username && (
-                <p className="mt-1 text-sm text-danger-500">{errors.username}</p>
+                <p className="mt-1 text-sm text-red-100 font-medium drop-shadow">{errors.username}</p>
               )}
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-white/95 mb-2 drop-shadow">
                 Password
               </label>
               <div className="relative">
@@ -124,39 +124,39 @@ const Login = () => {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-white/40 rounded-lg bg-white/30 backdrop-blur-lg text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-400/70 focus:border-white/60 focus:bg-white/40 transition-all duration-200 shadow-md font-medium"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/10 rounded-r-lg transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-5 w-5 text-gray-700 drop-shadow" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-5 w-5 text-gray-700 drop-shadow" />
                   )}
                 </button>
                 {errors.password && (
                   <div className="absolute inset-y-0 right-10 pr-3 flex items-center pointer-events-none">
-                    <AlertCircle className="h-5 w-5 text-danger-500" />
+                    <AlertCircle className="h-5 w-5 text-red-500 drop-shadow" />
                   </div>
                 )}
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-danger-500">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-100 font-medium drop-shadow">{errors.password}</p>
               )}
             </div>
 
             {/* General Error */}
             {errors.general && (
-              <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/50 rounded-lg p-3 shadow-sm">
+              <div className="bg-red-500/30 backdrop-blur-lg border border-red-300/50 rounded-lg p-3 shadow-md">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-                  <p className="text-sm font-medium text-red-600">{errors.general}</p>
+                  <AlertCircle className="h-5 w-5 text-red-100 mr-2 drop-shadow flex-shrink-0" />
+                  <p className="text-sm font-medium text-red-50 drop-shadow">{errors.general}</p>
                 </div>
               </div>
             )}
@@ -166,7 +166,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full"
+                className="bg-gradient-primary text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:scale-[1.02] w-full shadow-lg drop-shadow-md"
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -177,15 +177,6 @@ const Login = () => {
                   'Login'
                 )}
               </button>
-            </div>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-lg border border-white/50 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Demo Credentials:</h3>
-              <p className="text-sm text-gray-700">
-                <strong className="font-semibold">Username:</strong> admin<br />
-                <strong className="font-semibold">Password:</strong> admin123
-              </p>
             </div>
           </div>
         </form>
