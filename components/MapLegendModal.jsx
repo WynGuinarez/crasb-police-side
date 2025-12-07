@@ -1,10 +1,6 @@
 import { Info, MapPin, X } from 'lucide-react'
 
-interface MapLegendModalProps {
-  onClose: () => void
-}
-
-const MapLegendModal = ({ onClose }: MapLegendModalProps) => {
+const MapLegendModal = ({ onClose }) => {
   return (
     <div className="modal-overlay">
       <div className="modal-content max-w-md max-h-[90vh]">

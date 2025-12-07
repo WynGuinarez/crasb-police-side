@@ -3,30 +3,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Checkpoint {
-  id: string
-  name: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  assignedOfficers: string[]
-  schedule: string
-  timeStart: string
-  timeEnd: string
-  status: 'active' | 'inactive'
-  contactNumber: string
-}
-
-interface EditCheckpointModalProps {
-  checkpoint: Checkpoint
-  onClose: () => void
-  onUpdate: (checkpoint: Checkpoint) => void
-  onDelete: (checkpointId: string) => void
-}
-
-const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCheckpointModalProps) => {
+const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }) => {
   const [formData, setFormData] = useState({
     name: checkpoint.name,
     address: checkpoint.location.address,
@@ -43,15 +20,45 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Update an existing police checkpoint.
-   * METHOD: PATCH
-   * ENDPOINT: /api/checkpoints/:checkpointId
+   * ============================================================================
+   * BACKEND INTEGRATION: Update Existing Checkpoint
+   * ============================================================================
    * 
-   * Replace the onUpdate callback with an API call here.
-   * The API should accept the updated checkpoint data in the request body.
+   * BACKEND ENDPOINT: PATCH /api/checkpoints/{checkpoint_id}/
+   * 
+   * REQUEST BODY (only include fields to update):
+   * {
+   *   "name": "string" (optional),
+   *   "location": { "lat": number, "lng": number, "address": "string" } (optional),
+   *   "assignedOfficers": ["string"] (optional),
+   *   "schedule": "string" (optional),
+   *   "timeStart": "08:00" (optional),
+   *   "timeEnd": "20:00" (optional),
+   *   "status": "active" | "inactive" (optional),
+   *   "contactNumber": "string" (optional)
+   * }
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * {
+   *   ... (full updated checkpoint object)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Validate all required fields
+   * 2. Get auth token from localStorage
+   * 3. Make PATCH request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpoint.id}/
+   * 4. Include Authorization header and Content-Type: application/json
+   * 5. Send updated fields in request body
+   * 6. On success, call onUpdate callback with returned checkpoint
+   * 7. Close modal
+   * 8. Show success toast notification
+   * 9. Handle errors (401 = unauthorized, 400 = validation error, 404 = not found)
+   * ============================================================================
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     
     if (!formData.name.trim() || !formData.address.trim() || !formData.contactNumber.trim() || !formData.timeStart || !formData.timeEnd) {
@@ -76,7 +83,7 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
     setLoading(true)
     
     // Prepare updated checkpoint data for API submission
-    const updatedCheckpoint: Checkpoint = {
+    const updatedCheckpoint = {
       ...checkpoint,
       name: formData.name.trim(),
       location: {
@@ -91,7 +98,7 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
       schedule: formData.schedule.trim() || `${formData.timeStart} - ${formData.timeEnd}`,
       timeStart: formData.timeStart,
       timeEnd: formData.timeEnd,
-      status: formData.status as 'active' | 'inactive',
+      status: formData.status,
       contactNumber: formData.contactNumber.trim()
     }
     
@@ -106,12 +113,43 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
   }
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Delete a police checkpoint.
-   * METHOD: DELETE
-   * ENDPOINT: /api/checkpoints/:checkpointId
+   * ============================================================================
+   * BACKEND INTEGRATION: Delete Checkpoint
+   * ============================================================================
    * 
-   * Replace the onDelete callback with an API call here.
+   * BACKEND ENDPOINT: DELETE /api/checkpoints/{checkpoint_id}/
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (204): No content
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make DELETE request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpoint.id}/
+   * 3. Include Authorization header
+   * 4. On success (204), call onDelete callback with checkpoint id
+   * 5. Close modal
+   * 6. Show success toast notification
+   * 7. Handle errors (401 = unauthorized, 404 = not found)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpoint.id}/`,
+   *   {
+   *     method: 'DELETE',
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok || response.status === 204) {
+   *   onDelete(checkpoint.id)
+   *   onClose()
+   *   toast.success('Checkpoint deleted successfully')
+   * } else {
+   *   toast.error('Failed to delete checkpoint')
+   * }
+   * ============================================================================
    */
   const handleDelete = () => {
     // TODO: Replace with API call: DELETE /api/checkpoints/${checkpoint.id}
@@ -122,12 +160,12 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
     onClose()
   }
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   // Handle time input with strict 24-hour format enforcement
-  const handleTimeChange = (field: 'timeStart' | 'timeEnd', value: string) => {
+  const handleTimeChange = (field, value) => {
     // Remove any non-digit characters except colon
     let cleaned = value.replace(/[^\d:]/g, '')
     
@@ -443,3 +481,4 @@ const EditCheckpointModal = ({ checkpoint, onClose, onUpdate, onDelete }: EditCh
 }
 
 export default EditCheckpointModal
+

@@ -10,35 +10,8 @@ import {
     X
 } from 'lucide-react'
 
-interface ResolvedCase {
-  id: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  category: string
-  city: string
-  barangay: string
-  location: {
-    address: string
-    lat: number
-    lng: number
-  }
-  description: string
-  dateReported: string
-  dateResolved: string
-  resolutionTime: string
-  finalStatus: string
-  resolutionNotes?: string
-  attachments?: string[]
-}
-
-interface ResolvedCaseDetailsModalProps {
-  case_: ResolvedCase
-  onClose: () => void
-}
-
-const ResolvedCaseDetailsModal = ({ case_, onClose }: ResolvedCaseDetailsModalProps) => {
-  const formatDate = (dateString: string) => {
+const ResolvedCaseDetailsModal = ({ case_, onClose }) => {
+  const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -49,7 +22,7 @@ const ResolvedCaseDetailsModal = ({ case_, onClose }: ResolvedCaseDetailsModalPr
     })
   }
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category) => {
     switch (category.toLowerCase()) {
       case 'crime':
         return <AlertTriangle className="h-5 w-5 text-red-600" />

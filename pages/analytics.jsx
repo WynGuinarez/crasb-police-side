@@ -18,29 +18,11 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface AnalyticsData {
-  topLocations: {
-    city: string
-    barangay: string
-    count: number
-    percentage: number
-  }[]
-  categoryStats: {
-    category: string
-    count: number
-    percentage: number
-  }[]
-  timeStats: {
-    period: string
-    count: number
-  }[]
-}
-
 const Analytics = () => {
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
   const [activeTab] = useState('analytics')
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [analyticsData, setAnalyticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -48,26 +30,114 @@ const Analytics = () => {
   const [barangayFilter, setBarangayFilter] = useState('all')
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch analytics data including top locations, category stats, and time stats.
-   * METHOD: GET
-   * ENDPOINT: /api/analytics
+   * ============================================================================
+   * BACKEND INTEGRATION: Fetch Analytics Data
+   * ============================================================================
    * 
-   * Query parameters:
-   * - dateRange: string (e.g., '7', '30', '90', '365')
-   * - categoryFilter: string (e.g., 'all', 'crime', 'fire', 'medical', 'traffic')
-   * - cityFilter: string (e.g., 'all', 'Manila', 'Quezon City', 'Makati')
-   * - barangayFilter: string (e.g., 'all', 'Malate', 'Diliman', etc.)
+   * The backend provides separate endpoints for different analytics data.
+   * You'll need to make multiple API calls to get all analytics data.
    * 
-   * Note: Resolved cases data has been moved to the dedicated /resolved-cases page.
-   * This endpoint should only return analytics data (top locations, category stats, time stats).
+   * ENDPOINTS TO CALL:
+   * 1. GET /api/analytics/summary/overview/ - Total reports, resolved, avg resolution time
+   * 2. GET /api/analytics/hotspots/locations/ - Top locations with most reports
+   * 3. GET /api/analytics/hotspots/categories/ - Category statistics
    * 
-   * Replace the call to TemporaryDatabase.analytics with the actual API call here.
-   * Expected response format should match the AnalyticsData interface.
+   * QUERY PARAMETERS (apply to all endpoints):
+   * - days: Number (e.g., 7, 30, 90, 365) - Default: 30
+   * - scope: "our_office" | "all" - Default: "all"
+   * - office_id: UUID (required if scope=our_office)
+   * - city: City name (optional)
+   * - barangay: Barangay name (optional, requires city)
+   * - category: Category name (optional)
+   * 
+   * EXAMPLE QUERY:
+   * /api/analytics/summary/overview/?days=30&scope=our_office&office_id=abc123&category=Robbery
+   * 
+   * RESPONSE FORMATS:
+   * 
+   * 1. Overview Summary (GET /api/analytics/summary/overview/):
+   * {
+   *   "totalReports": 150,
+   *   "resolvedReports": 120,
+   *   "averageResolutionTime": "2.5 hours",
+   *   "pendingReports": 30
+   * }
+   * 
+   * 2. Location Hotspots (GET /api/analytics/hotspots/locations/):
+   * [
+   *   {
+   *     "location": "string",
+   *     "city": "string",
+   *     "barangay": "string",
+   *     "reportCount": 25,
+   *     "lat": 14.5995,
+   *     "lng": 120.9842
+   *   }
+   * ]
+   * 
+   * 3. Category Concentration (GET /api/analytics/hotspots/categories/):
+   * [
+   *   {
+   *     "category": "Robbery",
+   *     "count": 45,
+   *     "percentage": 30.0
+   *   }
+   * ]
+   * 
+   * INTEGRATION STEPS:
+   * 1. Build query parameters from filters (dateRange, categoryFilter, cityFilter, barangayFilter)
+   * 2. Get auth token from localStorage
+   * 3. Make 3 parallel API calls (Promise.all) to get all analytics data
+   * 4. Combine responses into analyticsData object
+   * 5. Handle errors (401 = unauthorized)
+   * 6. Set loading to false after all requests complete
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const params = new URLSearchParams()
+   * params.append('days', dateRange)
+   * if (categoryFilter !== 'all') params.append('category', categoryFilter)
+   * if (cityFilter !== 'all') params.append('city', cityFilter)
+   * if (barangayFilter !== 'all' && cityFilter !== 'all') {
+   *   params.append('barangay', barangayFilter)
+   * }
+   * 
+   * const queryString = params.toString()
+   * const baseUrl = process.env.NEXT_PUBLIC_API_URL
+   * 
+   * const [overview, locations, categories] = await Promise.all([
+   *   fetch(`${baseUrl}/analytics/summary/overview/?${queryString}`, {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }),
+   *   fetch(`${baseUrl}/analytics/hotspots/locations/?${queryString}`, {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }),
+   *   fetch(`${baseUrl}/analytics/hotspots/categories/?${queryString}`, {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   })
+   * ])
+   * 
+   * const overviewData = await overview.json()
+   * const locationsData = await locations.json()
+   * const categoriesData = await categories.json()
+   * 
+   * setAnalyticsData({
+   *   overview: overviewData,
+   *   topLocations: locationsData,
+   *   categoryStats: categoriesData,
+   *   timeStats: [] // If time stats endpoint exists, add it here
+   * })
+   * ============================================================================
    */
   useEffect(() => {
-    // Load data from temporary database (to be replaced with API call)
-    // TODO: Replace with API call: GET /api/analytics?dateRange=${dateRange}&categoryFilter=${categoryFilter}&cityFilter=${cityFilter}&barangayFilter=${barangayFilter}
+    // TODO: REPLACE WITH BACKEND API CALLS
+    // BACKEND ENDPOINTS:
+    // - GET /api/analytics/summary/overview/
+    // - GET /api/analytics/hotspots/locations/
+    // - GET /api/analytics/hotspots/categories/
+    // See detailed comments above for integration guide
+    
+    // Load data from temporary database (to be replaced with API calls)
     let topLocations = TemporaryDatabase.analytics.topLocations
     let categoryStats = TemporaryDatabase.analytics.categoryStats
     let timeStats = TemporaryDatabase.analytics.timeStats
@@ -82,7 +152,7 @@ const Analytics = () => {
       topLocations = topLocations.filter(location => location.barangay === barangayFilter)
     }
 
-    const analyticsData: AnalyticsData = {
+    const analyticsData = {
       topLocations,
       categoryStats,
       timeStats
@@ -102,7 +172,7 @@ const Analytics = () => {
    * The API should return an array of barangays that belong to the specified city.
    */
   // Get barangays for the selected city
-  const getBarangaysForCity = (cityName: string) => {
+  const getBarangaysForCity = (cityName) => {
     if (cityName === 'all') return []
     
     // Find city ID by name
@@ -436,3 +506,4 @@ const Analytics = () => {
 }
 
 export default Analytics
+

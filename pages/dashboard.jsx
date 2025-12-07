@@ -23,53 +23,91 @@ import ReportChatModal from '../components/ReportChatModal'
 import { useAuth } from '../contexts/AuthContext'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Report {
-  id: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  city: string
-  barangay: string
-  category: string
-  status: 'pending' | 'acknowledged' | 'en-route' | 'resolved' | 'canceled'
-  description: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  attachments: string[]
-  emergencyContact: {
-    name: string
-    phone: string
-  }
-  timestamp: string
-  distance?: string // Distance from police station to report location (e.g., "5.4 km")
-  eta?: string // Estimated time of arrival (e.g., "12 mins")
-}
-
 const Dashboard = () => {
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [reports, setReports] = useState<Report[]>([])
+  const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [selectedReport, setSelectedReport] = useState(null)
   const [showReportModal, setShowReportModal] = useState(false)
   const [showDirectionsModal, setShowDirectionsModal] = useState(false)
   const [showChatModal, setShowChatModal] = useState(false)
   const [newReportAlert, setNewReportAlert] = useState(false)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch the list of all active reports/cases for the dashboard.
-   * METHOD: GET
-   * ENDPOINT: /api/reports/active
+   * ============================================================================
+   * BACKEND INTEGRATION: Fetch Active Reports for Dashboard
+   * ============================================================================
    * 
-   * Replace the call to TemporaryDatabase.activeReports with the actual API call here.
-   * Expected response format should match the Report[] interface.
+   * BACKEND ENDPOINT: GET /api/reports/
+   * 
+   * QUERY PARAMETERS (Optional):
+   * - status: Filter by status (e.g., "pending", "acknowledged", "en-route")
+   *   Example: GET /api/reports/?status=pending
+   * 
+   * - To get only active (non-resolved) reports, filter by status:
+   *   GET /api/reports/?status__in=pending,acknowledged,en-route
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * - Get token from: localStorage.getItem('auth_token')
+   * 
+   * EXPECTED RESPONSE (200):
+   * [
+   *   {
+   *     "id": "uuid",
+   *     "reporterName": "string",
+   *     "reporterPhone": "string",
+   *     "category": "string",
+   *     "status": "pending" | "acknowledged" | "en-route" | "resolved" | "canceled",
+   *     "location": {
+   *       "lat": number,
+   *       "lng": number,
+   *       "address": "string",
+   *       "city": "string",
+   *       "barangay": "string"
+   *     },
+   *     "timestamp": "ISO 8601 datetime string",
+   *     "description": "string",
+   *     "attachments": ["url1", "url2"],
+   *     "distance": "string" (optional),
+   *     "eta": "string" (optional)
+   *   },
+   *   ...
+   * ]
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage: const token = localStorage.getItem('auth_token')
+   * 2. Make GET request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/?status__in=pending,acknowledged,en-route
+   * 3. Include Authorization header: { 'Authorization': `Bearer ${token}` }
+   * 4. Parse response JSON and set to reports state
+   * 5. Handle errors (401 = unauthorized, 500 = server error)
+   * 6. Set loading to false after request completes
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/?status__in=pending,acknowledged,en-route`,
+   *   {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok) {
+   *   const data = await response.json()
+   *   setReports(data)
+   * } else if (response.status === 401) {
+   *   // Token expired, redirect to login
+   *   router.push('/login')
+   * }
+   * setLoading(false)
+   * ============================================================================
    */
   useEffect(() => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: GET /api/reports/?status__in=pending,acknowledged,en-route
+    // See detailed comments above for integration guide
+    
     // Load data from temporary database (to be replaced with API call)
     const activeReports = TemporaryDatabase.activeReports
     setReports(activeReports)
@@ -111,7 +149,7 @@ const Dashboard = () => {
     router.push('/login')
   }
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = (tab) => {
     setActiveTab(tab)
     // Use router.push with shallow routing for faster navigation
     if (tab === 'map') {
@@ -121,17 +159,17 @@ const Dashboard = () => {
     }
   }
 
-  const handleViewReport = (report: Report) => {
+  const handleViewReport = (report) => {
     setSelectedReport(report)
     setShowReportModal(true)
   }
 
-  const handleViewDirections = (report: Report) => {
+  const handleViewDirections = (report) => {
     setSelectedReport(report)
     setShowDirectionsModal(true)
   }
 
-  const handleOpenChat = (report: Report) => {
+  const handleOpenChat = (report) => {
     setSelectedReport(report)
     setShowChatModal(true)
   }
@@ -142,16 +180,66 @@ const Dashboard = () => {
   }
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Update the status of a specific report/case.
-   * METHOD: PATCH
-   * ENDPOINT: /api/reports/:reportId/status
+   * ============================================================================
+   * BACKEND INTEGRATION: Update Report Status
+   * ============================================================================
    * 
-   * Replace the local state update with an API call here.
-   * The API should accept: { status: string } in the request body.
+   * BACKEND ENDPOINT: PATCH /api/reports/{report_id}/
+   * 
+   * NOTE: The backend uses PATCH on the report resource itself, not a separate
+   * /status endpoint. Update the status field as part of the report object.
+   * 
+   * REQUEST BODY:
+   * {
+   *   "status": "pending" | "acknowledged" | "en-route" | "resolved" | "canceled"
+   * }
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * {
+   *   "id": "uuid",
+   *   "status": "updated_status",
+   *   ... (full report object with updated status)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make PATCH request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${reportId}/
+   * 3. Include Authorization header and Content-Type: application/json
+   * 4. Send { status: newStatus } in request body
+   * 5. On success, update local state with response data
+   * 6. Show success toast notification
+   * 7. Handle errors (401 = unauthorized, 400 = invalid status)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${reportId}/`,
+   *   {
+   *     method: 'PATCH',
+   *     headers: {
+   *       'Authorization': `Bearer ${token}`,
+   *       'Content-Type': 'application/json'
+   *     },
+   *     body: JSON.stringify({ status: newStatus })
+   *   }
+   * )
+   * if (response.ok) {
+   *   const updatedReport = await response.json()
+   *   setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r))
+   *   toast.success('Status updated successfully')
+   * } else {
+   *   toast.error('Failed to update status')
+   * }
+   * ============================================================================
    */
-  const handleStatusChange = (reportId: string, newStatus: Report['status']) => {
-    // TODO: Replace with API call: PATCH /api/reports/${reportId}/status
+  const handleStatusChange = (reportId, newStatus) => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: PATCH /api/reports/{report_id}/
+    // See detailed comments above for integration guide
+    
     setReports(prev => prev.map(report => 
       report.id === reportId ? { ...report, status: newStatus } : report
     ))
@@ -167,7 +255,7 @@ const Dashboard = () => {
    * Replace the local state update with an API call here.
    * The API should accept: { distance: string, eta: string } in the request body.
    */
-  const handleDistanceEtaUpdate = (reportId: string, distance: string, eta: string) => {
+  const handleDistanceEtaUpdate = (reportId, distance, eta) => {
     // TODO: Replace with API call: PATCH /api/reports/${reportId}/distance-eta
     setReports(prev => prev.map(report => 
       report.id === reportId ? { ...report, distance, eta } : report
@@ -178,7 +266,7 @@ const Dashboard = () => {
     }
   }
 
-  const getStatusBadge = (status: Report['status']) => {
+  const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { label: 'Pending', className: 'status-pending' },
       acknowledged: { label: 'Acknowledged', className: 'status-acknowledged' },
@@ -195,7 +283,7 @@ const Dashboard = () => {
     )
   }
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category) => {
     switch (category.toLowerCase()) {
       case 'crime':
         return <AlertTriangle className="h-4 w-4 text-danger-500" />
@@ -208,7 +296,7 @@ const Dashboard = () => {
     }
   }
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -535,3 +623,4 @@ const Dashboard = () => {
 }
 
 export default Dashboard
+

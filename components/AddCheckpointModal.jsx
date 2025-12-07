@@ -3,28 +3,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Checkpoint {
-  id: string
-  name: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  assignedOfficers: string[]
-  schedule: string
-  timeStart: string
-  timeEnd: string
-  status: 'active' | 'inactive'
-  contactNumber: string
-}
-
-interface AddCheckpointModalProps {
-  onClose: () => void
-  onAdd: (checkpoint: Omit<Checkpoint, 'id'>) => void
-}
-
-const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
+const AddCheckpointModal = ({ onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -34,22 +13,79 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
     schedule: '',
     timeStart: '08:00',
     timeEnd: '20:00',
-    status: 'active' as 'active' | 'inactive',
+    status: 'active',
     contactNumber: ''
   })
   const [loading, setLoading] = useState(false)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Create a new police checkpoint.
-   * METHOD: POST
-   * ENDPOINT: /api/checkpoints
+   * ============================================================================
+   * BACKEND INTEGRATION: Create New Checkpoint
+   * ============================================================================
    * 
-   * Replace the onAdd callback with an API call here.
-   * The API should accept the checkpoint data (without id) in the request body.
-   * The API should return the created checkpoint with an assigned id.
+   * BACKEND ENDPOINT: POST /api/checkpoints/
+   * 
+   * REQUEST BODY:
+   * {
+   *   "name": "string",
+   *   "location": {
+   *     "lat": number,
+   *     "lng": number,
+   *     "address": "string"
+   *   },
+   *   "assignedOfficers": ["string"],
+   *   "schedule": "string",
+   *   "timeStart": "08:00",
+   *   "timeEnd": "20:00",
+   *   "status": "active",
+   *   "contactNumber": "string"
+   * }
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (201):
+   * {
+   *   "id": "uuid",  // Backend will assign this
+   *   ... (full checkpoint object with assigned id)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Validate all required fields
+   * 2. Get auth token from localStorage
+   * 3. Make POST request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/
+   * 4. Include Authorization header and Content-Type: application/json
+   * 5. Send checkpoint data (without id) in request body
+   * 6. On success, call onAdd callback with returned checkpoint (with id)
+   * 7. Close modal
+   * 8. Show success toast notification
+   * 9. Handle errors (401 = unauthorized, 400 = validation error)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/checkpoints/`,
+   *   {
+   *     method: 'POST',
+   *     headers: {
+   *       'Authorization': `Bearer ${token}`,
+   *       'Content-Type': 'application/json'
+   *     },
+   *     body: JSON.stringify(checkpoint)
+   *   }
+   * )
+   * if (response.ok) {
+   *   const createdCheckpoint = await response.json()
+   *   onAdd(createdCheckpoint)
+   *   onClose()
+   *   toast.success('Checkpoint created successfully')
+   * } else {
+   *   const error = await response.json()
+   *   toast.error(error.message || 'Failed to create checkpoint')
+   * }
+   * ============================================================================
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     
     if (!formData.name.trim() || !formData.address.trim() || !formData.contactNumber.trim() || !formData.timeStart || !formData.timeEnd) {
@@ -74,7 +110,7 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
     setLoading(true)
     
     // Prepare checkpoint data for API submission
-    const checkpoint: Omit<Checkpoint, 'id'> = {
+    const checkpoint = {
       name: formData.name.trim(),
       location: {
         lat: parseFloat(formData.lat) || 14.5995,
@@ -101,12 +137,12 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
     setLoading(false)
   }
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   // Handle time input with strict 24-hour format enforcement
-  const handleTimeChange = (field: 'timeStart' | 'timeEnd', value: string) => {
+  const handleTimeChange = (field, value) => {
     // Remove any non-digit characters except colon
     let cleaned = value.replace(/[^\d:]/g, '')
     
@@ -399,3 +435,4 @@ const AddCheckpointModal = ({ onClose, onAdd }: AddCheckpointModalProps) => {
 }
 
 export default AddCheckpointModal
+

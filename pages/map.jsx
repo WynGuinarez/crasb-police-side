@@ -25,47 +25,6 @@ import MapLegendModal from '../components/MapLegendModal'
 import { useAuth } from '../contexts/AuthContext'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Checkpoint {
-  id: string
-  name: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  assignedOfficers: string[]
-  schedule: string
-  timeStart: string
-  timeEnd: string
-  status: 'active' | 'inactive'
-  contactNumber: string
-}
-
-interface Report {
-  id: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  city: string
-  barangay: string
-  category: string
-  status: 'pending' | 'acknowledged' | 'en-route' | 'resolved' | 'canceled'
-  description: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  attachments: string[]
-  emergencyContact: {
-    name: string
-    phone: string
-  }
-  timestamp: string
-  distance?: string // Distance from police station to report location (e.g., "5.4 km")
-  eta?: string // Estimated time of arrival (e.g., "12 mins")
-}
-
 // Google Maps API Key
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDH2oAs9HoUj5BueJRfrAfeZiSkhmMWCok'
 
@@ -88,8 +47,8 @@ const LiveMap = () => {
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState('map')
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
-  const [reports, setReports] = useState<Report[]>([])
+  const [checkpoints, setCheckpoints] = useState([])
+  const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Load Google Maps script
@@ -98,45 +57,104 @@ const LiveMap = () => {
   })
   const [showAddCheckpoint, setShowAddCheckpoint] = useState(false)
   const [showEditCheckpoint, setShowEditCheckpoint] = useState(false)
-  const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null)
+  const [selectedCheckpoint, setSelectedCheckpoint] = useState(null)
   const [showReportModal, setShowReportModal] = useState(false)
-  const [selectedReportForModal, setSelectedReportForModal] = useState<Report | null>(null)
+  const [selectedReportForModal, setSelectedReportForModal] = useState(null)
   const [showLegendModal, setShowLegendModal] = useState(false)
-  const [activeFilters, setActiveFilters] = useState<{
-    activeCases: boolean
-    policeCheckpoint: boolean
-    policeOffices: boolean
-  }>({
+  const [activeFilters, setActiveFilters] = useState({
     activeCases: true,
     policeCheckpoint: true,
     policeOffices: true
   })
-  const [checkpointFilter, setCheckpointFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [selectedPin, setSelectedPin] = useState<{ type: 'report' | 'checkpoint' | 'office', data: Report | Checkpoint | null } | null>(null)
+  const [checkpointFilter, setCheckpointFilter] = useState('all')
+  const [selectedPin, setSelectedPin] = useState(null)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch all police checkpoints for map display.
-   * METHOD: GET
-   * ENDPOINT: /api/checkpoints
+   * ============================================================================
+   * BACKEND INTEGRATION: Fetch Map Data (Reports + Checkpoints + Offices)
+   * ============================================================================
    * 
-   * Replace the call to TemporaryDatabase.checkpoints with the actual API call here.
-   * Expected response format should match the Checkpoint[] interface.
-   */
-  /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch all active reports for map display.
-   * METHOD: GET
-   * ENDPOINT: /api/reports/active
+   * RECOMMENDED APPROACH: Use the combined map data endpoint for efficiency
    * 
-   * Replace the call to TemporaryDatabase.activeReports with the actual API call here.
-   * Expected response format should match the Report[] interface.
+   * BACKEND ENDPOINT: GET /api/admin/map/data/
+   * 
+   * This endpoint returns all data needed for the map in a single request:
+   * - Active reports (pending, acknowledged, en-route)
+   * - All checkpoints
+   * - Police offices
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * {
+   *   "reports": [
+   *     {
+   *       "id": "uuid",
+   *       "status": "pending" | "acknowledged" | "en-route",
+   *       "location": { "lat": number, "lng": number, "address": "string" },
+   *       ... (full report object)
+   *     }
+   *   ],
+   *   "checkpoints": [
+   *     {
+   *       "id": "uuid",
+   *       "name": "string",
+   *       "location": { "lat": number, "lng": number, "address": "string" },
+   *       "status": "active" | "inactive",
+   *       ... (full checkpoint object)
+   *     }
+   *   ],
+   *   "offices": [
+   *     {
+   *       "id": "uuid",
+   *       "name": "string",
+   *       "location": { "lat": number, "lng": number, "address": "string" },
+   *       ... (full office object)
+   *     }
+   *   ]
+   * }
+   * 
+   * ALTERNATIVE APPROACH (if combined endpoint not available):
+   * Make two separate requests:
+   * 1. GET /api/reports/?status__in=pending,acknowledged,en-route
+   * 2. GET /api/checkpoints/
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make GET request to: ${process.env.NEXT_PUBLIC_API_URL}/admin/map/data/
+   * 3. Include Authorization header
+   * 4. Parse response and set reports, checkpoints, and offices states
+   * 5. Handle errors (401 = unauthorized)
+   * 6. Set loading to false after request completes
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/admin/map/data/`,
+   *   {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok) {
+   *   const data = await response.json()
+   *   setReports(data.reports || [])
+   *   setCheckpoints(data.checkpoints || [])
+   *   // Optionally handle offices: setOffices(data.offices || [])
+   * } else if (response.status === 401) {
+   *   router.push('/login')
+   * }
+   * setLoading(false)
+   * ============================================================================
    */
   useEffect(() => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: GET /api/admin/map/data/ (RECOMMENDED)
+    // OR use separate endpoints: GET /api/reports/ and GET /api/checkpoints/
+    // See detailed comments above for integration guide
+    
     // Load data from temporary database (to be replaced with API calls)
-    // TODO: Replace with API call: GET /api/checkpoints
     const checkpoints = TemporaryDatabase.checkpoints
-    // TODO: Replace with API call: GET /api/reports/active
     const reports = TemporaryDatabase.activeReports.filter(r => 
       r.status === 'pending' || r.status === 'acknowledged' || r.status === 'en-route'
     )
@@ -178,13 +196,57 @@ const LiveMap = () => {
     router.push('/login')
   }
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = (tab) => {
     setActiveTab(tab)
     // Navigation handled by Link components for faster transitions
   }
 
-  const handleAddCheckpoint = (checkpoint: Omit<Checkpoint, 'id'>) => {
-    const newCheckpoint: Checkpoint = {
+  /*
+   * ============================================================================
+   * BACKEND INTEGRATION: Create New Checkpoint
+   * ============================================================================
+   * 
+   * BACKEND ENDPOINT: POST /api/checkpoints/
+   * 
+   * REQUEST BODY:
+   * {
+   *   "name": "string",
+   *   "location": {
+   *     "lat": number,
+   *     "lng": number,
+   *     "address": "string"
+   *   },
+   *   "assignedOfficers": ["string"],
+   *   "schedule": "string",
+   *   "timeStart": "08:00",
+   *   "timeEnd": "20:00",
+   *   "status": "active",
+   *   "contactNumber": "string"
+   * }
+   * 
+   * EXPECTED RESPONSE (201):
+   * {
+   *   "id": "uuid",  // Backend will assign this
+   *   ... (full checkpoint object with assigned id)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make POST request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/
+   * 3. Include Authorization header and Content-Type: application/json
+   * 4. Send checkpoint data (without id) in request body
+   * 5. On success, add returned checkpoint (with id) to local state
+   * 6. Show success toast notification
+   * 7. Handle errors (401 = unauthorized, 400 = validation error)
+   * ============================================================================
+   */
+  const handleAddCheckpoint = (checkpoint) => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: POST /api/checkpoints/
+    // See detailed comments above for integration guide
+    
+    // Temporary: Add to local state (to be replaced with API call)
+    const newCheckpoint = {
       ...checkpoint,
       id: Date.now().toString()
     }
@@ -202,7 +264,46 @@ const LiveMap = () => {
    * Replace the local state update with an API call here.
    * The API should accept the updated checkpoint data in the request body.
    */
-  const handleEditCheckpoint = (updatedCheckpoint: Checkpoint) => {
+  /*
+   * ============================================================================
+   * BACKEND INTEGRATION: Update Existing Checkpoint
+   * ============================================================================
+   * 
+   * BACKEND ENDPOINT: PATCH /api/checkpoints/{checkpoint_id}/
+   * 
+   * REQUEST BODY (only include fields to update):
+   * {
+   *   "name": "string" (optional),
+   *   "location": { "lat": number, "lng": number, "address": "string" } (optional),
+   *   "assignedOfficers": ["string"] (optional),
+   *   "schedule": "string" (optional),
+   *   "timeStart": "08:00" (optional),
+   *   "timeEnd": "20:00" (optional),
+   *   "status": "active" | "inactive" (optional),
+   *   "contactNumber": "string" (optional)
+   * }
+   * 
+   * EXPECTED RESPONSE (200):
+   * {
+   *   ... (full updated checkpoint object)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make PATCH request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpoint.id}/
+   * 3. Include Authorization header and Content-Type: application/json
+   * 4. Send updated fields in request body
+   * 5. On success, update local state with response data
+   * 6. Show success toast notification
+   * 7. Handle errors (401 = unauthorized, 400 = validation error, 404 = not found)
+   * ============================================================================
+   */
+  const handleEditCheckpoint = (updatedCheckpoint) => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: PATCH /api/checkpoints/{checkpoint_id}/
+    // See detailed comments above for integration guide
+    
+    // Temporary: Update local state (to be replaced with API call)
     // TODO: Replace with API call: PATCH /api/checkpoints/${updatedCheckpoint.id}
     setCheckpoints(prev => prev.map(checkpoint => 
       checkpoint.id === updatedCheckpoint.id ? updatedCheckpoint : checkpoint
@@ -223,18 +324,57 @@ const LiveMap = () => {
    * 
    * Replace the local state update with an API call here.
    */
-  const handleDeleteCheckpoint = (checkpointId: string) => {
+  /*
+   * ============================================================================
+   * BACKEND INTEGRATION: Delete Checkpoint
+   * ============================================================================
+   * 
+   * BACKEND ENDPOINT: DELETE /api/checkpoints/{checkpoint_id}/
+   * 
+   * EXPECTED RESPONSE (204): No content
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make DELETE request to: ${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpointId}/
+   * 3. Include Authorization header
+   * 4. On success (204), remove checkpoint from local state
+   * 5. Show success toast notification
+   * 6. Handle errors (401 = unauthorized, 404 = not found)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/checkpoints/${checkpointId}/`,
+   *   {
+   *     method: 'DELETE',
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok || response.status === 204) {
+   *   setCheckpoints(prev => prev.filter(cp => cp.id !== checkpointId))
+   *   toast.success('Checkpoint deleted successfully')
+   * } else {
+   *   toast.error('Failed to delete checkpoint')
+   * }
+   * ============================================================================
+   */
+  const handleDeleteCheckpoint = (checkpointId) => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: DELETE /api/checkpoints/{checkpoint_id}/
+    // See detailed comments above for integration guide
+    
+    // Temporary: Remove from local state (to be replaced with API call)
     // TODO: Replace with API call: DELETE /api/checkpoints/${checkpointId}
     setCheckpoints(prev => prev.filter(checkpoint => checkpoint.id !== checkpointId))
     toast.success('Checkpoint deleted successfully')
   }
 
-  const handleEditCheckpointClick = (checkpoint: Checkpoint) => {
+  const handleEditCheckpointClick = (checkpoint) => {
     setSelectedCheckpoint(checkpoint)
     setShowEditCheckpoint(true)
   }
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category) => {
     switch (category.toLowerCase()) {
       case 'crime':
         return <AlertTriangle className="h-4 w-4 text-danger-500" />
@@ -247,7 +387,7 @@ const LiveMap = () => {
     }
   }
 
-  const getStatusColor = (status: Report['status']) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
         return 'text-status-pending-700'
@@ -265,7 +405,7 @@ const LiveMap = () => {
   }
 
   // Function to determine if a checkpoint is currently active based on status and time
-  const isCheckpointCurrentlyActive = (checkpoint: Checkpoint): boolean => {
+  const isCheckpointCurrentlyActive = (checkpoint) => {
     // First check if the checkpoint status is 'inactive' - if so, it's always inactive
     if (checkpoint.status === 'inactive') {
       return false
@@ -293,7 +433,7 @@ const LiveMap = () => {
   }
 
   // Filter checkpoints based on selected filter
-  const getFilteredCheckpoints = (): Checkpoint[] => {
+  const getFilteredCheckpoints = () => {
     if (checkpointFilter === 'all') {
       return checkpoints
     } else if (checkpointFilter === 'active') {
@@ -490,7 +630,7 @@ const LiveMap = () => {
               <div className="ml-2">
                 <select
                   value={checkpointFilter}
-                  onChange={(e) => setCheckpointFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                  onChange={(e) => setCheckpointFilter(e.target.value)}
                   className="px-4 py-2 rounded-2xl text-sm font-medium border-2 border-primary-600 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
                   {TemporaryDatabase.checkpointFilters.map(filter => (
@@ -524,7 +664,7 @@ const LiveMap = () => {
             >
                 {/* Case Pins (Reports) */}
                 {activeFilters.activeCases && reports.map((report) => {
-                  const getCategoryColor = (category: string) => {
+                  const getCategoryColor = (category) => {
                     switch (category.toLowerCase()) {
                       case 'crime':
                         return '#ef4444' // red-500
@@ -593,12 +733,12 @@ const LiveMap = () => {
                 <div className="flex items-start justify-between mb-2">
                   {selectedPin.type === 'report' && selectedPin.data && (
                     <h3 className="text-sm font-semibold text-gray-900 flex-1 pr-2 truncate">
-                      {(selectedPin.data as Report).category} Report
+                      {selectedPin.data.category} Report
                     </h3>
                   )}
                   {selectedPin.type === 'checkpoint' && selectedPin.data && (
                     <h3 className="text-sm font-semibold text-gray-900 flex-1 pr-2 truncate">
-                      {(selectedPin.data as Checkpoint).name}
+                      {selectedPin.data.name}
                     </h3>
                   )}
                   <button
@@ -613,24 +753,24 @@ const LiveMap = () => {
                   <>
                     <div className="space-y-1.5 mb-3">
                       <p className="text-xs text-gray-700 truncate">
-                        <span className="font-medium">Reporter:</span> {(selectedPin.data as Report).reporterName}
+                        <span className="font-medium">Reporter:</span> {selectedPin.data.reporterName}
                       </p>
                       <p className="text-xs text-gray-700 truncate">
-                        <span className="font-medium">Location:</span> {(selectedPin.data as Report).city}, {(selectedPin.data as Report).barangay}
+                        <span className="font-medium">Location:</span> {selectedPin.data.city}, {selectedPin.data.barangay}
                       </p>
                       <p className="text-xs text-gray-700">
                         <span className="font-medium">Status:</span>{' '}
-                        <span className={`font-medium underline ${getStatusColor((selectedPin.data as Report).status)}`}>
-                          {(selectedPin.data as Report).status.charAt(0).toUpperCase() + (selectedPin.data as Report).status.slice(1)}
+                        <span className={`font-medium underline ${getStatusColor(selectedPin.data.status)}`}>
+                          {selectedPin.data.status.charAt(0).toUpperCase() + selectedPin.data.status.slice(1)}
                         </span>
                       </p>
                       <p className="text-xs text-gray-500 pt-1.5 border-t border-gray-200 line-clamp-2">
-                        {(selectedPin.data as Report).location.address}
+                        {selectedPin.data.location.address}
                       </p>
                     </div>
                     <button
                       onClick={() => {
-                        setSelectedReportForModal(selectedPin.data as Report)
+                        setSelectedReportForModal(selectedPin.data)
                         setShowReportModal(true)
                         setSelectedPin(null)
                       }}
@@ -642,7 +782,7 @@ const LiveMap = () => {
                 )}
                 
                 {selectedPin.type === 'checkpoint' && selectedPin.data && (() => {
-                  const checkpoint = selectedPin.data as Checkpoint
+                  const checkpoint = selectedPin.data
                   // Format operating hours: show "24/7" if timeStart is 00:00 and timeEnd is 23:59 (or 00:00)
                   const formatOperatingHours = () => {
                     // Check for 24/7 cases: 00:00 to 23:59 or 00:00 to 00:00 (full day)
@@ -673,7 +813,7 @@ const LiveMap = () => {
                     <div className="flex flex-col space-y-1.5">
                       <button
                         onClick={() => {
-                          handleEditCheckpointClick(selectedPin.data as Checkpoint)
+                          handleEditCheckpointClick(selectedPin.data)
                           setSelectedPin(null)
                         }}
                         className="btn-secondary text-xs py-1.5 px-3 flex items-center justify-center w-full"
@@ -683,8 +823,8 @@ const LiveMap = () => {
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm(`Are you sure you want to delete "${(selectedPin.data as Checkpoint).name}"?`)) {
-                            handleDeleteCheckpoint((selectedPin.data as Checkpoint).id)
+                          if (confirm(`Are you sure you want to delete "${selectedPin.data.name}"?`)) {
+                            handleDeleteCheckpoint(selectedPin.data.id)
                             setSelectedPin(null)
                           }
                         }}
@@ -759,3 +899,4 @@ const LiveMap = () => {
 }
 
 export default LiveMap
+

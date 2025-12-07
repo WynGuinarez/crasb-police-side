@@ -35,11 +35,11 @@ A comprehensive web dashboard for police authorities to manage emergency reports
 
 ## Technology Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
+- **Frontend**: Next.js 14, React 18, JavaScript
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Notifications**: React Hot Toast
-- **Charts**: Recharts (for future analytics)
+- **Maps**: Google Maps API
 - **UI Components**: Custom components with Radix UI primitives
 
 ## 🚀 Getting Started
@@ -95,27 +95,33 @@ npm install
 ```
 crasb-police-side/
 ├── components/          # Reusable UI components
-│   ├── ReportChatModal.tsx      # Per-report chat functionality
-│   ├── ReportDetailsModal.tsx   # Report details view
-│   ├── DirectionsModal.tsx      # Navigation directions
-│   ├── AddCheckpointModal.tsx  # Add checkpoint
-│   └── EditCheckpointModal.tsx # Edit checkpoint
+│   ├── ReportChatModal.jsx      # Per-report chat functionality
+│   ├── ReportDetailsModal.jsx   # Report details view
+│   ├── DirectionsModal.jsx      # Navigation directions
+│   ├── AddCheckpointModal.jsx  # Add checkpoint
+│   ├── EditCheckpointModal.jsx # Edit checkpoint
+│   ├── PageHeader.jsx          # Shared page header
+│   └── NavigationTabs.jsx       # Shared navigation tabs
 ├── contexts/           # React contexts
-│   └── AuthContext.tsx         # Authentication context
+│   └── AuthContext.jsx         # Authentication context
 ├── lib/                # Utility libraries
-│   └── firebase-config.ts      # Application configuration
+│   ├── TemporaryDatabase.js   # Temporary mock data (to be replaced with API)
+│   └── utils.js               # Shared utility functions
 ├── pages/              # Next.js pages
-│   ├── _app.tsx        # App wrapper
-│   ├── index.tsx       # Root redirect
-│   ├── login.tsx      # Login page
-│   ├── dashboard.tsx   # Main dashboard
-│   ├── map.tsx        # Live map view
-│   └── analytics.tsx  # Analytics page
+│   ├── _app.jsx        # App wrapper
+│   ├── index.jsx       # Root redirect
+│   ├── login.jsx      # Login page
+│   ├── dashboard.jsx   # Main dashboard
+│   ├── map.jsx        # Live map view
+│   ├── analytics.jsx  # Analytics page
+│   └── resolved-cases.jsx # Resolved cases page
 ├── styles/             # Global styles
 │   └── globals.css     # Tailwind CSS and custom styles
-├── .env.example        # Environment variables template (no Firebase needed)
+├── docs/               # Documentation
+│   ├── README.md       # Project overview
+│   ├── SETUP_GUIDE.md  # Complete setup guide
+│   └── ...             # Other documentation files
 ├── .env.local          # Your local config (not in git)
-├── SETUP_GUIDE.md      # Complete setup instructions
 └── package.json        # Dependencies
 ```
 
@@ -124,7 +130,9 @@ crasb-police-side/
 - **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Complete step-by-step setup guide
 - **[QUICK_START.md](./QUICK_START.md)** - 5-minute quick start
 - **[SYSTEM_STRUCTURE.md](./SYSTEM_STRUCTURE.md)** - System architecture and features
-- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - API endpoints documentation
+- **[DJANGO_BACKEND_INTEGRATION.md](./DJANGO_BACKEND_INTEGRATION.md)** - **START HERE!** Complete Django backend integration guide (CORS, Axios, Authentication)
+- **[BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md)** - Endpoint mappings and integration points reference
+- **[API_INTEGRATION_GUIDE.md](./API_INTEGRATION_GUIDE.md)** - Legacy API integration guide (deprecated)
 
 ## Key Features Implementation
 

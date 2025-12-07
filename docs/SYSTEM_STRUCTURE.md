@@ -17,7 +17,7 @@
 
 **Technology Stack:**
 - Next.js 14 (React 18)
-- TypeScript
+- JavaScript
 - Tailwind CSS
 - Google Maps API
 - React Hot Toast (Notifications)
@@ -26,14 +26,14 @@
 
 ## Page Structure
 
-### 1. **Index Page** (`/` - `pages/index.tsx`)
+### 1. **Index Page** (`/` - `pages/index.jsx`)
 - **Purpose**: Root redirect page
 - **Actions**:
   - Auto-redirects authenticated users to `/dashboard`
   - Auto-redirects unauthenticated users to `/login`
 - **No UI Elements**
 
-### 2. **Login Page** (`/login` - `pages/login.tsx`)
+### 2. **Login Page** (`/login` - `pages/login.jsx`)
 - **Purpose**: Authentication entry point
 - **UI Elements**:
   - CRASH Logo (C icon in circle)
@@ -54,7 +54,7 @@
   - Username: `admin`
   - Password: `admin123`
 
-### 3. **Dashboard Page** (`/dashboard` - `pages/dashboard.tsx`)
+### 3. **Dashboard Page** (`/dashboard` - `pages/dashboard.jsx`)
 - **Purpose**: Main control center for active reports
 - **Header Elements**:
   - CRASH Logo & Title
@@ -84,7 +84,7 @@
   - New report alerts
   - Status filtering by badge colors
 
-### 4. **Live Map Page** (`/map` - `pages/map.tsx`)
+### 4. **Live Map Page** (`/map` - `pages/map.jsx`)
 - **Purpose**: Interactive map with checkpoints and reports
 - **Header Elements**:
   - CRASH Logo & Title
@@ -143,7 +143,7 @@
   - Real-time checkpoint status updates (every minute)
   - Active checkpoint determination based on current time vs operating hours
 
-### 5. **Analytics Page** (`/analytics` - `pages/analytics.tsx`)
+### 5. **Analytics Page** (`/analytics` - `pages/analytics.jsx`)
 - **Purpose**: Data analysis and statistics
 - **Header Elements**:
   - CRASH Logo & Title
@@ -238,7 +238,7 @@
 
 ## Components & Modals
 
-### 1. **AddCheckpointModal** (`components/AddCheckpointModal.tsx`)
+### 1. **AddCheckpointModal** (`components/AddCheckpointModal.jsx`)
 - **Trigger**: "Add Checkpoint" button on Map page
 - **Purpose**: Create new police checkpoint
 - **Form Fields**:
@@ -268,7 +268,7 @@
   - Adds to map
   - Shows success toast
 
-### 2. **EditCheckpointModal** (`components/EditCheckpointModal.tsx`)
+### 2. **EditCheckpointModal** (`components/EditCheckpointModal.jsx`)
 - **Trigger**: "Edit" button in checkpoint pin popup or checkpoint detail
 - **Purpose**: Modify existing checkpoint
 - **Form Fields**: (Same as AddCheckpointModal, pre-filled)
@@ -294,7 +294,7 @@
   - Resets filter to "All" after update
   - Deletes checkpoint on confirmation
 
-### 3. **ReportDetailsModal** (`components/ReportDetailsModal.tsx`)
+### 3. **ReportDetailsModal** (`components/ReportDetailsModal.jsx`)
 - **Trigger**: "View" button on Dashboard or "View Full Details" in map popup
 - **Purpose**: Display complete report information
 - **Sections**:
@@ -338,7 +338,7 @@
   - Sends message to reporter
   - Shows success/error toasts
 
-### 4. **DirectionsModal** (`components/DirectionsModal.tsx`)
+### 4. **DirectionsModal** (`components/DirectionsModal.jsx`)
 - **Trigger**: "Directions" button on Dashboard
 - **Purpose**: Navigation to report location
 - **Content**:
@@ -358,7 +358,7 @@
   - Copies URL to clipboard
   - Opens Google Maps in new tab
 
-### 5. **MapLegendModal** (`components/MapLegendModal.tsx`)
+### 5. **MapLegendModal** (`components/MapLegendModal.jsx`)
 - **Trigger**: "Legend" button on Map page
 - **Purpose**: Explain pin colors and meanings
 - **Content Sections**:
@@ -375,7 +375,7 @@
   - **Close Button** (Primary, bottom)
   - **X Button** (top right)
 
-### 6. **ResolvedCaseDetailsModal** (`components/ResolvedCaseDetailsModal.tsx`)
+### 6. **ResolvedCaseDetailsModal** (`components/ResolvedCaseDetailsModal.jsx`)
 - **Trigger**: "View Details" button in Analytics Resolved Cases view
 - **Purpose**: Display resolved case information
 - **Content Sections**:
@@ -729,21 +729,27 @@ Update every minute automatically
 ```
 crasb-police-side/
 ├── components/
-│   ├── AddCheckpointModal.tsx
-│   ├── DirectionsModal.tsx
-│   ├── EditCheckpointModal.tsx
-│   ├── MapLegendModal.tsx
-│   ├── ReportDetailsModal.tsx
-│   └── ResolvedCaseDetailsModal.tsx
+│   ├── AddCheckpointModal.jsx
+│   ├── DirectionsModal.jsx
+│   ├── EditCheckpointModal.jsx
+│   ├── MapLegendModal.jsx
+│   ├── ReportDetailsModal.jsx
+│   ├── ResolvedCaseDetailsModal.jsx
+│   ├── PageHeader.jsx
+│   └── NavigationTabs.jsx
 ├── contexts/
-│   └── AuthContext.tsx
+│   └── AuthContext.jsx
+├── lib/
+│   ├── TemporaryDatabase.js
+│   └── utils.js
 ├── pages/
-│   ├── _app.tsx
-│   ├── index.tsx
-│   ├── login.tsx
-│   ├── dashboard.tsx
-│   ├── map.tsx
-│   └── analytics.tsx
+│   ├── _app.jsx
+│   ├── index.jsx
+│   ├── login.jsx
+│   ├── dashboard.jsx
+│   ├── map.jsx
+│   ├── analytics.jsx
+│   └── resolved-cases.jsx
 ├── styles/
 │   └── globals.css
 └── [config files]

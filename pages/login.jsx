@@ -12,7 +12,7 @@ const Login = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<{ username?: string; password?: string; general?: string }>({})
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -20,8 +20,8 @@ const Login = () => {
     }
   }, [isAuthenticated, router])
 
-  const validateForm = (): boolean => {
-    const newErrors: typeof errors = {}
+  const validateForm = () => {
+    const newErrors = {}
     
     if (!username.trim()) {
       newErrors.username = 'Username is required'
@@ -35,7 +35,7 @@ const Login = () => {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     
     if (!validateForm()) return
@@ -186,3 +186,4 @@ const Login = () => {
 }
 
 export default Login
+

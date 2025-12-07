@@ -3,39 +3,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Report {
-  id: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  city: string
-  barangay: string
-  category: string
-  status: 'pending' | 'acknowledged' | 'en-route' | 'resolved' | 'canceled'
-  description: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  attachments: string[]
-  emergencyContact: {
-    name: string
-    phone: string
-  }
-  timestamp: string
-  distance?: string // Distance from police station to report location (e.g., "5.4 km")
-  eta?: string // Estimated time of arrival (e.g., "12 mins")
-}
-
-interface DirectionsModalProps {
-  report: Report
-  onClose: () => void
-  onDistanceEtaUpdate?: (reportId: string, distance: string, eta: string) => void
-}
-
 // Haversine formula to calculate distance between two coordinates
-const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371 // Earth's radius in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
@@ -47,10 +16,10 @@ const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lo
   return R * c
 }
 
-const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }: DirectionsModalProps) => {
+const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }) => {
   const [showQRCode, setShowQRCode] = useState(false)
-  const [distance, setDistance] = useState<string>(report.distance || '')
-  const [eta, setEta] = useState<string>(report.eta || '')
+  const [distance, setDistance] = useState(report.distance || '')
+  const [eta, setEta] = useState(report.eta || '')
   const [loading, setLoading] = useState(false)
 
   /*
@@ -125,8 +94,8 @@ const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }: DirectionsMod
           }
         }
       } catch (error) {
-        console.error('Error calculating distance and ETA:', error)
-        // Fallback calculation
+        // Fallback calculation using Haversine formula
+        // Error logged silently - user will see fallback calculation
         const calculatedDistance = calculateHaversineDistance(
           policeStationLocation.lat,
           policeStationLocation.lng,
@@ -333,3 +302,4 @@ const DirectionsModal = ({ report, onClose, onDistanceEtaUpdate }: DirectionsMod
 }
 
 export default DirectionsModal
+

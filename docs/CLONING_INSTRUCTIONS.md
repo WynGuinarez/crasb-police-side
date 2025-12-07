@@ -14,12 +14,12 @@ npm install
 
 # 3. Create environment file
 # Windows (PowerShell):
-Copy-Item .env.example .env.local
+New-Item -Path .env.local -ItemType File
 # Mac/Linux:
-# cp .env.example .env.local
+# touch .env.local
 
-# 4. Edit .env.local and add your Firebase credentials
-# (See FIREBASE_SETUP.md for details)
+# 4. Edit .env.local and add your API credentials
+# (See SETUP_GUIDE.md for details)
 
 # 5. Run the application
 npm run dev
@@ -50,16 +50,7 @@ added 567 packages, and audited 567 packages in 2m
 
 ### Step 3: Create Environment File
 
-**Option A: Copy from example (if .env.example exists)**
-```bash
-# Windows PowerShell
-Copy-Item .env.example .env.local
-
-# Mac/Linux
-cp .env.example .env.local
-```
-
-**Option B: Create manually**
+**Create manually**
 ```bash
 # Windows PowerShell
 New-Item -Path .env.local -ItemType File
@@ -71,36 +62,21 @@ touch .env.local
 Then add this content to `.env.local`:
 
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_APP_ID=crash-police-app
-NEXT_PUBLIC_FIREBASE_AUTH_TOKEN=
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-### Step 4: Get Firebase Credentials
+### Step 4: Configure API Endpoint
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create/Select project
-3. Project Settings → Your apps → Add web app
-4. Copy the `firebaseConfig` values
-5. Paste into `.env.local`
+Update `NEXT_PUBLIC_API_URL` in `.env.local` with your backend API URL.
 
 ### Step 5: Verify Setup
 
-```bash
-npm run setup-check
-```
-
-This will verify:
-- ✅ Node.js version
-- ✅ Dependencies installed
-- ✅ Environment file exists
-- ✅ Firebase config present
+Check that:
+- ✅ Node.js version 18+ is installed
+- ✅ Dependencies are installed (`node_modules` exists)
+- ✅ Environment file exists (`.env.local`)
 
 ### Step 6: Run Application
 
@@ -121,8 +97,7 @@ After cloning, read these in order:
 
 1. **[QUICK_START.md](./QUICK_START.md)** - 5-minute setup
 2. **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Complete setup guide
-3. **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration
-4. **[INSTALL_INSTRUCTIONS.md](./INSTALL_INSTRUCTIONS.md)** - Detailed installation
+3. **[API_INTEGRATION_GUIDE.md](./API_INTEGRATION_GUIDE.md)** - API integration guide
 
 ## ⚠️ Common Issues
 
@@ -132,9 +107,9 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-### "Firebase configuration is missing"
+### "API configuration is missing"
 - Make sure `.env.local` exists
-- Fill in all `NEXT_PUBLIC_FIREBASE_*` variables
+- Fill in `NEXT_PUBLIC_API_URL` variable
 - Restart dev server
 
 ### Port 3000 already in use
@@ -147,7 +122,7 @@ npm run dev -- -p 3001
 After setup, verify:
 
 - [ ] `npm install` completed without errors
-- [ ] `.env.local` file exists with Firebase config
+- [ ] `.env.local` file exists with API configuration
 - [ ] `npm run dev` starts successfully
 - [ ] Can access http://localhost:3000
 - [ ] Can log in with admin/admin123
@@ -156,9 +131,10 @@ After setup, verify:
 ## 🆘 Need Help?
 
 1. Check [SETUP_GUIDE.md](./SETUP_GUIDE.md) for detailed troubleshooting
-2. Run `npm run setup-check` to verify setup
-3. Check browser console (F12) for errors
-4. Verify all environment variables in `.env.local`
+2. Check browser console (F12) for errors
+3. Verify all environment variables in `.env.local`
+4. Ensure backend API is running if using API integration
+5. For backend integration, see [BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md)
 
 ## 🎉 You're Ready!
 

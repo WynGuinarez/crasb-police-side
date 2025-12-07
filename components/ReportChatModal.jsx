@@ -3,28 +3,6 @@ import { MessageSquare, X } from 'lucide-react'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 /**
- * Chat Message Interface
- */
-interface ChatMessage {
-  id?: string
-  text: string
-  timestamp: Date
-  senderType: 'police' | 'sender'
-}
-
-interface ReportChatModalProps {
-  report: {
-    id: string
-    reporterName: string
-    category: string
-    location: {
-      address: string
-    }
-  }
-  onClose: () => void
-}
-
-/**
  * Report Chat Modal Component (Static Mock Version)
  * 
  * Displays static mock conversations between police and reporters.
@@ -32,24 +10,74 @@ interface ReportChatModalProps {
  * 
  * @component
  */
-const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
+const ReportChatModal = ({ report, onClose }) => {
   // Component State
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState([])
   const [messageText, setMessageText] = useState('')
-  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef(null)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch chat messages for a specific report.
-   * METHOD: GET
-   * ENDPOINT: /api/reports/:reportId/messages
+   * ============================================================================
+   * BACKEND INTEGRATION: Fetch Messages for Report
+   * ============================================================================
    * 
-   * Replace the call to TemporaryDatabase.chatConversations with the actual API call here.
-   * Expected response format should match the ChatMessage[] interface.
+   * BACKEND ENDPOINT: GET /api/reports/{report_id}/messages/
+   * 
+   * NOTE: This is a nested endpoint under reports. Messages belong to a specific report.
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * [
+   *   {
+   *     "id": "uuid",
+   *     "text": "string",
+   *     "timestamp": "2024-01-01T12:00:00Z",
+   *     "senderType": "police" | "reporter",
+   *     "senderName": "string" (optional)
+   *   }
+   * ]
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make GET request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/
+   * 3. Include Authorization header
+   * 4. Parse response JSON (should already be sorted by backend, but sort if needed)
+   * 5. Convert timestamp strings to Date objects if needed
+   * 6. Set messages state
+   * 7. Scroll to bottom after messages load
+   * 8. Handle errors (401 = unauthorized, 404 = report not found)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/`,
+   *   {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok) {
+   *   const data = await response.json()
+   *   // Convert timestamp strings to Date objects
+   *   const messages = data.map(msg => ({
+   *     ...msg,
+   *     timestamp: new Date(msg.timestamp)
+   *   }))
+   *   // Sort chronologically (oldest -> newest)
+   *   const sorted = messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+   *   setMessages(sorted)
+   *   setTimeout(() => scrollToBottom(), 100)
+   * }
+   * ============================================================================
    */
   // Load conversation on mount
   useEffect(() => {
-    // TODO: Replace with API call: GET /api/reports/${report.id}/messages
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: GET /api/reports/{report_id}/messages/
+    // See detailed comments above for integration guide
+    
+    // Temporary: Load from mock data (to be replaced with API call)
     const keyByName = (report.reporterName || '').toString().replace(/\s+/g, '').toLowerCase()
     const convo = TemporaryDatabase.chatConversations[keyByName]
     if (convo && convo.length > 0) {
@@ -73,7 +101,7 @@ const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
   /**
    * Format timestamp for display
    */
-  const formatTimestamp = (timestamp: Date): string => {
+  const formatTimestamp = (timestamp) => {
     const now = new Date()
     const diffMs = now.getTime() - timestamp.getTime()
     const diffMins = Math.floor(diffMs / 60000)
@@ -106,12 +134,79 @@ const ReportChatModal = ({ report, onClose }: ReportChatModalProps) => {
     }
   }, [messages])
 
+  /*
+   * ============================================================================
+   * BACKEND INTEGRATION: Send Message
+   * ============================================================================
+   * 
+   * BACKEND ENDPOINT: POST /api/reports/{report_id}/messages/
+   * 
+   * REQUEST BODY:
+   * {
+   *   "text": "string",
+   *   "senderType": "police"
+   * }
+   * 
+   * EXPECTED RESPONSE (201):
+   * {
+   *   "id": "uuid",
+   *   "text": "string",
+   *   "timestamp": "2024-01-01T12:00:00Z",
+   *   "senderType": "police",
+   *   "senderName": "string" (optional)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Validate message text is not empty
+   * 2. Get auth token from localStorage
+   * 3. Make POST request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/
+   * 4. Include Authorization header and Content-Type: application/json
+   * 5. Send { text: messageText.trim(), senderType: 'police' } in request body
+   * 6. On success, add returned message to messages state (optimistic update)
+   * 7. Clear message input field
+   * 8. Scroll to bottom to show new message
+   * 9. Handle errors (401 = unauthorized, 400 = validation error)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/`,
+   *   {
+   *     method: 'POST',
+   *     headers: {
+   *       'Authorization': `Bearer ${token}`,
+   *       'Content-Type': 'application/json'
+   *     },
+   *     body: JSON.stringify({
+   *       text: messageText.trim(),
+   *       senderType: 'police'
+   *     })
+   *   }
+   * )
+   * if (response.ok) {
+   *   const newMessage = await response.json()
+   *   // Convert timestamp string to Date object
+   *   newMessage.timestamp = new Date(newMessage.timestamp)
+   *   setMessages((prev) => [...prev, newMessage])
+   *   setMessageText('')
+   *   setTimeout(() => scrollToBottom(), 100)
+   * } else {
+   *   toast.error('Failed to send message')
+   * }
+   * ============================================================================
+   */
   // Handle sending a new message
-  const handleSendMessage = (e?: React.FormEvent) => {
+  const handleSendMessage = (e) => {
     if (e) e.preventDefault()
     const text = messageText.trim()
     if (!text) return
-    const newMessage: ChatMessage = {
+    
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: POST /api/reports/{report_id}/messages/
+    // See detailed comments above for integration guide
+    
+    // Temporary: Add to local state (to be replaced with API call)
+    const newMessage = {
       id: `local-${Date.now()}`,
       text,
       timestamp: new Date(),

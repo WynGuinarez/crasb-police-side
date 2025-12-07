@@ -1,15 +1,26 @@
-# API Integration Guide
+# API Integration Guide (Legacy)
+
+> **⚠️ DEPRECATED**: This document is outdated. Please use **[BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md)** instead, which contains:
+> - Complete endpoint mappings to Django REST API backend
+> - Detailed integration instructions with code examples
+> - Request/response formats for all endpoints
+> - Authentication requirements
+> - Error handling guidance
+>
+> This legacy document is kept for reference only.
+
+---
 
 This document provides a comprehensive guide for backend developers to integrate API endpoints into the police web application.
 
 ## Overview
 
-All static/hard-coded data has been centralized into `lib/TemporaryDatabase.ts`. This file serves as a temporary local database that will be replaced with actual API calls.
+All static/hard-coded data has been centralized into `lib/TemporaryDatabase.js`. This file serves as a temporary local database that will be replaced with actual API calls.
 
 ## Data Centralization
 
 ### Temporary Database Location
-- **File**: `lib/TemporaryDatabase.ts`
+- **File**: `lib/TemporaryDatabase.js`
 - **Purpose**: Contains all static data, mock data, and placeholder values
 - **Usage**: All components reference this database instead of embedding data directly
 
@@ -35,7 +46,7 @@ All static/hard-coded data has been centralized into `lib/TemporaryDatabase.ts`.
 
 All API integration points are marked with the following comment format:
 
-```typescript
+```javascript
 /*
  * TODO: API INTEGRATION POINT
  * ACTION: [Description of the action]
@@ -49,14 +60,14 @@ All API integration points are marked with the following comment format:
 ### Reports API
 
 #### 1. Get Active Reports
-- **Location**: `pages/dashboard.tsx` (line ~62)
+- **Location**: `pages/dashboard.jsx` (line ~62)
 - **ACTION**: Fetch the list of all active cases
 - **METHOD**: GET
 - **ENDPOINT**: `/api/reports/active`
 - **Response**: Array of Report objects matching the `Report` interface
 
 #### 2. Update Report Status
-- **Location**: `pages/dashboard.tsx` (line ~143), `pages/map.tsx` (line ~712), `components/ReportDetailsModal.tsx` (line ~62)
+- **Location**: `pages/dashboard.jsx` (line ~143), `pages/map.jsx` (line ~712), `components/ReportDetailsModal.jsx` (line ~62)
 - **ACTION**: Update the status of a specific report
 - **METHOD**: PATCH
 - **ENDPOINT**: `/api/reports/:reportId/status`
@@ -64,7 +75,7 @@ All API integration points are marked with the following comment format:
 - **Response**: Updated Report object
 
 #### 3. Update Report Distance/ETA
-- **Location**: `pages/dashboard.tsx` (line ~151)
+- **Location**: `pages/dashboard.jsx` (line ~151)
 - **ACTION**: Update distance and ETA information for a specific report
 - **METHOD**: PATCH
 - **ENDPOINT**: `/api/reports/:reportId/distance-eta`
@@ -72,14 +83,14 @@ All API integration points are marked with the following comment format:
 - **Response**: Updated Report object
 
 #### 4. Get Reports for Map
-- **Location**: `pages/map.tsx` (line ~116)
+- **Location**: `pages/map.jsx` (line ~116)
 - **ACTION**: Fetch all active reports for map display
 - **METHOD**: GET
 - **ENDPOINT**: `/api/reports/active`
 - **Response**: Array of Report objects (filtered by status: pending, acknowledged, en-route)
 
 #### 5. New Report Notifications
-- **Location**: `pages/dashboard.tsx` (line ~78)
+- **Location**: `pages/dashboard.jsx` (line ~78)
 - **ACTION**: Listen for new report notifications/alerts
 - **METHOD**: WebSocket or Server-Sent Events (SSE)
 - **ENDPOINT**: `/api/reports/notifications` (WebSocket) or `/api/reports/stream` (SSE)
@@ -88,14 +99,14 @@ All API integration points are marked with the following comment format:
 ### Checkpoints API
 
 #### 1. Get All Checkpoints
-- **Location**: `pages/map.tsx` (line ~116)
+- **Location**: `pages/map.jsx` (line ~116)
 - **ACTION**: Fetch all police checkpoints for map display
 - **METHOD**: GET
 - **ENDPOINT**: `/api/checkpoints`
 - **Response**: Array of Checkpoint objects
 
 #### 2. Create Checkpoint
-- **Location**: `pages/map.tsx` (line ~248), `components/AddCheckpointModal.tsx` (line ~41)
+- **Location**: `pages/map.jsx` (line ~248), `components/AddCheckpointModal.jsx` (line ~41)
 - **ACTION**: Create a new police checkpoint
 - **METHOD**: POST
 - **ENDPOINT**: `/api/checkpoints`
@@ -103,7 +114,7 @@ All API integration points are marked with the following comment format:
 - **Response**: Created Checkpoint object with assigned `id`
 
 #### 3. Update Checkpoint
-- **Location**: `pages/map.tsx` (line ~258), `components/EditCheckpointModal.tsx` (line ~44)
+- **Location**: `pages/map.jsx` (line ~258), `components/EditCheckpointModal.jsx` (line ~44)
 - **ACTION**: Update an existing police checkpoint
 - **METHOD**: PATCH
 - **ENDPOINT**: `/api/checkpoints/:checkpointId`
@@ -111,14 +122,14 @@ All API integration points are marked with the following comment format:
 - **Response**: Updated Checkpoint object
 
 #### 4. Delete Checkpoint
-- **Location**: `pages/map.tsx` (line ~270), `components/EditCheckpointModal.tsx` (line ~92)
+- **Location**: `pages/map.jsx` (line ~270), `components/EditCheckpointModal.jsx` (line ~92)
 - **ACTION**: Delete a police checkpoint
 - **METHOD**: DELETE
 - **ENDPOINT**: `/api/checkpoints/:checkpointId`
 - **Response**: Success confirmation
 
 #### 5. Checkpoint Status Updates
-- **Location**: `pages/map.tsx` (line ~154)
+- **Location**: `pages/map.jsx` (line ~154)
 - **ACTION**: Poll for checkpoint status updates (active/inactive based on time)
 - **METHOD**: GET (polling) or WebSocket/SSE (real-time)
 - **ENDPOINT**: `/api/checkpoints/status-updates` (polling) or WebSocket connection
@@ -127,7 +138,7 @@ All API integration points are marked with the following comment format:
 ### Analytics API
 
 #### 1. Get Analytics Data
-- **Location**: `pages/analytics.tsx` (line ~71)
+- **Location**: `pages/analytics.jsx` (line ~71)
 - **ACTION**: Fetch analytics data including top locations, resolved cases, category stats, and time stats
 - **METHOD**: GET
 - **ENDPOINT**: `/api/analytics`
@@ -137,7 +148,7 @@ All API integration points are marked with the following comment format:
 - **Response**: AnalyticsData object matching the `AnalyticsData` interface
 
 #### 2. Export Analytics Data
-- **Location**: `pages/analytics.tsx` (line ~222)
+- **Location**: `pages/analytics.jsx` (line ~222)
 - **ACTION**: Export analytics data in a specified format (CSV, PDF, etc.)
 - **METHOD**: GET
 - **ENDPOINT**: `/api/analytics/export`
@@ -150,14 +161,14 @@ All API integration points are marked with the following comment format:
 ### Chat/Messages API
 
 #### 1. Get Chat Messages
-- **Location**: `components/ReportChatModal.tsx` (line ~77)
+- **Location**: `components/ReportChatModal.jsx` (line ~77)
 - **ACTION**: Fetch chat messages for a specific report
 - **METHOD**: GET
 - **ENDPOINT**: `/api/reports/:reportId/messages`
 - **Response**: Array of ChatMessage objects
 
 #### 2. Send Chat Message
-- **Location**: `components/ReportChatModal.tsx` (line ~135), `components/ReportDetailsModal.tsx` (line ~69)
+- **Location**: `components/ReportChatModal.jsx` (line ~135), `components/ReportDetailsModal.jsx` (line ~69)
 - **ACTION**: Send a new chat message for a specific report
 - **METHOD**: POST
 - **ENDPOINT**: `/api/reports/:reportId/messages`
@@ -167,7 +178,7 @@ All API integration points are marked with the following comment format:
 ### Police Station API
 
 #### 1. Get Police Station Location
-- **Location**: `components/DirectionsModal.tsx` (line ~55)
+- **Location**: `components/DirectionsModal.jsx` (line ~55)
 - **ACTION**: Fetch the police station location (user's assigned station)
 - **METHOD**: GET
 - **ENDPOINT**: `/api/police-station/location`
@@ -178,20 +189,20 @@ All API integration points are marked with the following comment format:
 If any of the following data should be dynamic (fetched from backend), create corresponding endpoints:
 
 #### 1. Report Status Options
-- **Location**: `components/ReportDetailsModal.tsx` (line ~76)
+- **Location**: `components/ReportDetailsModal.jsx` (line ~76)
 - **Current**: Uses `TemporaryDatabase.reportStatuses`
 - **If Dynamic**: GET `/api/reports/status-options`
 - **Response**: Array of `{ value: string, label: string }`
 
 #### 2. Report Categories
-- **Location**: `pages/analytics.tsx` (line ~300)
+- **Location**: `pages/analytics.jsx` (line ~300)
 - **Current**: Uses `TemporaryDatabase.reportCategories`
 - **If Dynamic**: GET `/api/reports/categories`
 - **Response**: Array of category strings
 
-## TypeScript Interfaces
+## Data Structures
 
-All data structures are defined in `lib/TemporaryDatabase.ts`. Key interfaces:
+All data structures are defined in `lib/TemporaryDatabase.js`. Key data structures:
 
 - `Report`: Report/case data structure
 - `Checkpoint`: Police checkpoint data structure
@@ -285,12 +296,12 @@ When integrating APIs:
 2. Test error handling (network failures, invalid responses)
 3. Test loading states
 4. Test authentication/authorization
-5. Verify data format matches TypeScript interfaces
+5. Verify data format matches expected structure
 
 ## Notes
 
 - All API integration points are clearly marked with `TODO: API INTEGRATION POINT` comments
-- The exact format of request/response should match the TypeScript interfaces
+- The exact format of request/response should match the data structures in TemporaryDatabase.js
 - Consider implementing request caching for frequently accessed data
 - Implement proper loading states and error boundaries
 - All static dropdown options are now in `TemporaryDatabase` for easy replacement

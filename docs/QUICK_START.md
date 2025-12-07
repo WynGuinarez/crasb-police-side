@@ -27,24 +27,21 @@ New-Item -Path .env.local -ItemType File
 touch .env.local
 ```
 
-### 3. Add Firebase Configuration
+### 3. Add Configuration
 
 Open `.env.local` and add:
 
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
 NEXT_PUBLIC_APP_ID=crash-police-app
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-**Get Firebase credentials:**
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Project Settings → Your apps → Add web app
-3. Copy the config values
+**Get Google Maps API key:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project or select existing one
+3. Enable Maps JavaScript API
+4. Create API key and add to `.env.local`
 
 ### 4. Run the App
 ```bash
@@ -59,4 +56,6 @@ npm run dev
 ## That's it! 🎉
 
 For detailed setup, see [SETUP_GUIDE.md](./SETUP_GUIDE.md)
+
+For backend integration, see [BACKEND_INTEGRATION_GUIDE.md](./BACKEND_INTEGRATION_GUIDE.md)
 

@@ -1,9 +1,8 @@
-import type { NextPage } from 'next'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
-const Home: NextPage = () => {
+const Home = () => {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
 
@@ -19,3 +18,4 @@ const Home: NextPage = () => {
 }
 
 export default Home
+

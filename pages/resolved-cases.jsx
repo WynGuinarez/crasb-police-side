@@ -14,39 +14,104 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import ResolvedCaseDetailsModal from '../components/ResolvedCaseDetailsModal'
 import { useAuth } from '../contexts/AuthContext'
-import { TemporaryDatabase, ResolvedCase } from '../lib/TemporaryDatabase'
+import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
 const ResolvedCases = () => {
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
   const [activeTab] = useState('resolved-cases')
-  const [resolvedCases, setResolvedCases] = useState<ResolvedCase[]>([])
+  const [resolvedCases, setResolvedCases] = useState([])
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [cityFilter, setCityFilter] = useState('all')
   const [barangayFilter, setBarangayFilter] = useState('all')
   const [showResolvedCaseModal, setShowResolvedCaseModal] = useState(false)
-  const [selectedResolvedCase, setSelectedResolvedCase] = useState<ResolvedCase | null>(null)
+  const [selectedResolvedCase, setSelectedResolvedCase] = useState(null)
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Fetch the list of all resolved cases.
-   * METHOD: GET
-   * ENDPOINT: /api/reports/resolved
+   * ============================================================================
+   * BACKEND INTEGRATION: Fetch Resolved Cases
+   * ============================================================================
    * 
-   * Query parameters:
-   * - dateRange: string (e.g., '7', '30', '90', '365')
-   * - categoryFilter: string (e.g., 'all', 'crime', 'fire', 'medical', 'traffic')
-   * - cityFilter: string (e.g., 'all', 'Manila', 'Quezon City', 'Makati')
-   * - barangayFilter: string (e.g., 'all', 'Malate', 'Diliman', etc.)
+   * BACKEND ENDPOINT: GET /api/reports/resolved/
    * 
-   * Replace the call to TemporaryDatabase.analytics.resolvedCases with the actual API call here.
-   * Expected response format should match the ResolvedCase[] interface.
+   * QUERY PARAMETERS:
+   * - days: Number (e.g., 7, 30, 90, 365) - Default: 30
+   * - scope: "our_office" | "all" - Default: "all"
+   * - office_id: UUID (required if scope=our_office)
+   * - city: City name (optional)
+   * - barangay: Barangay name (optional, requires city)
+   * - category: Category name (optional)
+   * 
+   * EXAMPLE QUERY:
+   * /api/reports/resolved/?days=30&scope=our_office&office_id=abc123&category=Robbery&city=Manila
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * [
+   *   {
+   *     "id": "uuid",
+   *     "reporterName": "string",
+   *     "category": "string",
+   *     "status": "resolved",
+   *     "location": {
+   *       "city": "string",
+   *       "barangay": "string",
+   *       "address": "string",
+   *       "lat": number,
+   *       "lng": number
+   *     },
+   *     "timestamp": "2024-01-01T12:00:00Z",
+   *     "resolvedAt": "2024-01-01T14:30:00Z",
+   *     "resolutionTime": "2.5 hours",
+   *     "description": "string",
+   *     "attachments": ["url1", "url2"]
+   *   }
+   * ]
+   * 
+   * INTEGRATION STEPS:
+   * 1. Build query parameters from filters (dateRange, categoryFilter, cityFilter, barangayFilter)
+   * 2. Get auth token from localStorage
+   * 3. Make GET request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/resolved/
+   * 4. Include Authorization header
+   * 5. Parse response JSON and set to resolvedCases state
+   * 6. Handle errors (401 = unauthorized)
+   * 7. Set loading to false after request completes
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const params = new URLSearchParams()
+   * params.append('days', dateRange)
+   * if (categoryFilter !== 'all') params.append('category', categoryFilter)
+   * if (cityFilter !== 'all') params.append('city', cityFilter)
+   * if (barangayFilter !== 'all' && cityFilter !== 'all') {
+   *   params.append('barangay', barangayFilter)
+   * }
+   * 
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/resolved/?${params.toString()}`,
+   *   {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok) {
+   *   const data = await response.json()
+   *   setResolvedCases(data)
+   * } else if (response.status === 401) {
+   *   router.push('/login')
+   * }
+   * setLoading(false)
+   * ============================================================================
    */
   useEffect(() => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: GET /api/reports/resolved/
+    // See detailed comments above for integration guide
+    
     // Load data from temporary database (to be replaced with API call)
-    // TODO: Replace with API call: GET /api/reports/resolved?dateRange=${dateRange}&categoryFilter=${categoryFilter}&cityFilter=${cityFilter}&barangayFilter=${barangayFilter}
     let cases = TemporaryDatabase.analytics.resolvedCases
 
     // Apply category filter if not 'all'
@@ -80,7 +145,7 @@ const ResolvedCases = () => {
    * The API should return an array of barangays that belong to the specified city.
    */
   // Get barangays for the selected city
-  const getBarangaysForCity = (cityName: string) => {
+  const getBarangaysForCity = (cityName) => {
     if (cityName === 'all') return []
     
     // Find city ID by name
@@ -112,7 +177,64 @@ const ResolvedCases = () => {
    * The API should return the file as a download (Content-Disposition header)
    * or return a URL to download the generated report.
    */
-  const handleExportCase = (caseId: string) => {
+  /*
+   * ============================================================================
+   * BACKEND INTEGRATION: Export Single Resolved Case (PDF)
+   * ============================================================================
+   * 
+   * BACKEND ENDPOINT: GET /api/reports/{report_id}/export/
+   * 
+   * NOTE: The report_id should be a UUID format
+   * Example: /api/reports/a1b2c3d4-e5f6-7890-1234-567890abcdef/export/
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * - Content-Type: application/pdf
+   * - Binary PDF file data
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make GET request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${caseId}/export/
+   * 3. Include Authorization header
+   * 4. Set response type to 'blob' to handle binary PDF data
+   * 5. Create a download link from the blob
+   * 6. Trigger download programmatically
+   * 7. Clean up the blob URL after download
+   * 8. Show success toast notification
+   * 9. Handle errors (401 = unauthorized, 404 = case not found)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${caseId}/export/`,
+   *   {
+   *     headers: { 'Authorization': `Bearer ${token}` }
+   *   }
+   * )
+   * if (response.ok) {
+   *   const blob = await response.blob()
+   *   const url = window.URL.createObjectURL(blob)
+   *   const a = document.createElement('a')
+   *   a.href = url
+   *   a.download = `case-${caseId}.pdf`
+   *   document.body.appendChild(a)
+   *   a.click()
+   *   window.URL.revokeObjectURL(url)
+   *   document.body.removeChild(a)
+   *   toast.success('Case report exported successfully')
+   * } else {
+   *   toast.error('Failed to export case report')
+   * }
+   * ============================================================================
+   */
+  const handleExportCase = (caseId) => {
+    // TODO: REPLACE WITH BACKEND API CALL
+    // BACKEND ENDPOINT: GET /api/reports/{report_id}/export/
+    // See detailed comments above for integration guide
+    
+    toast.success('Exporting case report...')
     // TODO: Replace with API call: GET /api/cases/${caseId}/export?format=pdf
     // Example implementation:
     // const response = await fetch(`/api/cases/${caseId}/export?format=pdf`, {
@@ -129,9 +251,6 @@ const ResolvedCases = () => {
     // window.URL.revokeObjectURL(url)
     // document.body.removeChild(a)
     
-    // Placeholder: Log the case ID being exported
-    console.log('Exporting case:', caseId)
-    
     // Show success notification
     toast.success(`Exporting case report for case ID: ${caseId}`)
   }
@@ -147,7 +266,7 @@ const ResolvedCases = () => {
     router.push('/login')
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -157,7 +276,7 @@ const ResolvedCases = () => {
     })
   }
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category) => {
     switch (category.toLowerCase()) {
       case 'crime':
         return 'text-red-600'

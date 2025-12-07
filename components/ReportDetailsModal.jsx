@@ -17,40 +17,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { TemporaryDatabase } from '../lib/TemporaryDatabase'
 
-interface Report {
-  id: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  city: string
-  barangay: string
-  category: string
-  status: 'pending' | 'acknowledged' | 'en-route' | 'resolved' | 'canceled'
-  description: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  attachments: string[]
-  emergencyContact: {
-    name: string
-    phone: string
-  }
-  timestamp: string
-  distance?: string // Distance from police station to report location (e.g., "5.4 km")
-  eta?: string // Estimated time of arrival (e.g., "12 mins")
-}
-
-interface ReportDetailsModalProps {
-  report: Report
-  onClose: () => void
-  onStatusChange: (reportId: string, newStatus: Report['status']) => void
-  onDistanceEtaUpdate?: (reportId: string, distance: string, eta: string) => void
-}
-
-const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpdate }: ReportDetailsModalProps) => {
-  const [selectedStatus, setSelectedStatus] = useState<Report['status']>(report.status)
+const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpdate }) => {
+  const [selectedStatus, setSelectedStatus] = useState(report.status)
   const [message, setMessage] = useState('')
   const [showAttachments, setShowAttachments] = useState(false)
 
@@ -60,18 +28,68 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
   }, [report.status])
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Update the status of a specific report.
-   * METHOD: PATCH
-   * ENDPOINT: /api/reports/:reportId/status
+   * ============================================================================
+   * BACKEND INTEGRATION: Update Report Status
+   * ============================================================================
    * 
-   * Replace the onStatusChange callback with an API call here.
-   * The API should accept: { status: string } in the request body.
+   * BACKEND ENDPOINT: PATCH /api/reports/{report_id}/
+   * 
+   * NOTE: The backend uses PATCH on the report resource itself, not a separate
+   * /status endpoint. Update the status field as part of the report object.
+   * 
+   * REQUEST BODY:
+   * {
+   *   "status": "pending" | "acknowledged" | "en-route" | "resolved" | "canceled"
+   * }
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (200):
+   * {
+   *   "id": "uuid",
+   *   "status": "updated_status",
+   *   ... (full report object with updated status)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Get auth token from localStorage
+   * 2. Make PATCH request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/
+   * 3. Include Authorization header and Content-Type: application/json
+   * 4. Send { status: selectedStatus } in request body
+   * 5. On success, call onStatusChange callback with updated report
+   * 6. Show success toast notification
+   * 7. Close modal
+   * 8. Handle errors (401 = unauthorized, 400 = invalid status)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/`,
+   *   {
+   *     method: 'PATCH',
+   *     headers: {
+   *       'Authorization': `Bearer ${token}`,
+   *       'Content-Type': 'application/json'
+   *     },
+   *     body: JSON.stringify({ status: selectedStatus })
+   *   }
+   * )
+   * if (response.ok) {
+   *   const updatedReport = await response.json()
+   *   onStatusChange(report.id, selectedStatus) // Update parent component
+   *   toast.success('Status updated successfully')
+   *   onClose()
+   * } else {
+   *   toast.error('Failed to update status')
+   * }
+   * ============================================================================
    */
   const handleStatusChange = () => {
     if (selectedStatus !== report.status) {
-      // TODO: Replace with API call: PATCH /api/reports/${report.id}/status
-      // await fetch(`/api/reports/${report.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: selectedStatus }) })
+      // TODO: REPLACE WITH BACKEND API CALL
+      // BACKEND ENDPOINT: PATCH /api/reports/{report_id}/
+      // See detailed comments above for integration guide
       
       // Temporary: Call parent callback (to be replaced with API call)
       onStatusChange(report.id, selectedStatus)
@@ -80,18 +98,74 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
   }
 
   /*
-   * TODO: API INTEGRATION POINT
-   * ACTION: Send a message to the reporter for a specific report.
-   * METHOD: POST
-   * ENDPOINT: /api/reports/:reportId/messages
+   * ============================================================================
+   * BACKEND INTEGRATION: Send Message to Reporter
+   * ============================================================================
    * 
-   * Replace the local notification with an API call here.
-   * The API should accept: { text: string, senderType: 'police' } in the request body.
+   * BACKEND ENDPOINT: POST /api/reports/{report_id}/messages/
+   * 
+   * NOTE: This is a nested endpoint under reports. Messages belong to a specific report.
+   * 
+   * REQUEST BODY:
+   * {
+   *   "text": "string",
+   *   "senderType": "police"
+   * }
+   * 
+   * AUTHENTICATION:
+   * - Include JWT token in Authorization header: "Bearer {token}"
+   * 
+   * EXPECTED RESPONSE (201):
+   * {
+   *   "id": "uuid",
+   *   "text": "string",
+   *   "timestamp": "2024-01-01T12:00:00Z",
+   *   "senderType": "police",
+   *   "senderName": "string" (optional)
+   * }
+   * 
+   * INTEGRATION STEPS:
+   * 1. Validate message text is not empty
+   * 2. Get auth token from localStorage
+   * 3. Make POST request to: ${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/
+   * 4. Include Authorization header and Content-Type: application/json
+   * 5. Send { text: message.trim(), senderType: 'police' } in request body
+   * 6. On success, show success toast notification
+   * 7. Clear message input field
+   * 8. Optionally refresh messages list to show new message
+   * 9. Handle errors (401 = unauthorized, 400 = validation error)
+   * 
+   * EXAMPLE IMPLEMENTATION:
+   * const token = localStorage.getItem('auth_token')
+   * const response = await fetch(
+   *   `${process.env.NEXT_PUBLIC_API_URL}/reports/${report.id}/messages/`,
+   *   {
+   *     method: 'POST',
+   *     headers: {
+   *       'Authorization': `Bearer ${token}`,
+   *       'Content-Type': 'application/json'
+   *     },
+   *     body: JSON.stringify({
+   *       text: message.trim(),
+   *       senderType: 'police'
+   *     })
+   *   }
+   * )
+   * if (response.ok) {
+   *   toast.success('Message sent to reporter')
+   *   setMessage('')
+   *   // Optionally refresh messages if needed
+   * } else {
+   *   toast.error('Failed to send message')
+   * }
+   * ============================================================================
    */
   const handleSendMessage = () => {
     if (message.trim()) {
-      // TODO: Replace with API call: POST /api/reports/${report.id}/messages
-      // In a real app, this would send a message to the reporter
+      // TODO: REPLACE WITH BACKEND API CALL
+      // BACKEND ENDPOINT: POST /api/reports/{report_id}/messages/
+      // See detailed comments above for integration guide
+      
       toast.success('Message sent to reporter')
       setMessage('')
     }
@@ -110,12 +184,12 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
     // Using static status options from TemporaryDatabase
     // TODO: If statuses are dynamic, replace with API call: GET /api/reports/status-options
     return TemporaryDatabase.reportStatuses.map(status => ({
-      value: status.value as Report['status'],
+      value: status.value,
       label: status.label
     }))
   }
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -126,7 +200,7 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
     })
   }
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category) => {
     switch (category.toLowerCase()) {
       case 'crime':
         return <AlertTriangle className="h-5 w-5 text-danger-500" />
@@ -344,7 +418,7 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
                         // Open attachment in new tab/window
                         const url = attachment.startsWith('http') 
                           ? attachment 
-                          : `${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}/storage/v1/object/public/attachments/${attachment}`
+                          : `${process.env.NEXT_PUBLIC_API_URL || ''}/attachments/${attachment}`
                         window.open(url, '_blank')
                       }}
                       className="bg-white/60 backdrop-blur-sm hover:bg-white/80 border border-white/40 rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
@@ -405,7 +479,7 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
                 <div className="flex space-x-2">
                   <select
                     value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value as Report['status'])}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
                     className="input-field flex-1"
                   >
                     {getStatusOptions().map((option) => (
@@ -441,3 +515,4 @@ const ReportDetailsModal = ({ report, onClose, onStatusChange, onDistanceEtaUpda
 }
 
 export default ReportDetailsModal
+
